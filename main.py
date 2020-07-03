@@ -6,7 +6,7 @@ def createHeader():
     label = Label(
         text="Hello, Tkinter",
         fg="black",  # Set the text color to white
-        bg="lavender"  # Set the background color to black
+        bg="green yellow"  # Set the background color to black
     )
     label.pack()
 
@@ -18,6 +18,8 @@ def createTable(window):
     tree = ttk.Treeview(TableMargin, columns=("Account", "Username", "Password", "Comments"),
                         height=400, selectmode="extended",
                         yscrollcommand=scrollbary.set, xscrollcommand=scrollbarx.set)
+    tree.tag_configure('odd', background='#E0FFFF')
+    tree.tag_configure('even', background='#E6E6FA')
     scrollbary.config(command=tree.yview)
     scrollbary.pack(side=RIGHT, fill=Y)
     scrollbarx.config(command=tree.xview)
@@ -31,14 +33,20 @@ def createTable(window):
     tree.column('#2', stretch=NO, minwidth=0, width=200)
     tree.column('#3', stretch=NO, minwidth=0, width=300)
     tree.pack()
+    return tree
+
+def populateTable(tree):
     with open('ids.csv') as f:
         reader = csv.DictReader(f, delimiter=',')
+        odd = True
         for row in reader:
             account = row['Account']
             username = row['Username']
             password = row['Password']
             comments = row['Comments']
-            tree.insert("", 0, values=(account, username, password, comments))
+            tree.insert("", 0, values=(account, username, password, comments), tags=(('even', 'odd')[odd],))
+            odd = not odd
+
 
 def setupWindow():
     window = Tk()
@@ -57,5 +65,6 @@ def setupWindow():
 if __name__ == '__main__':
     root = setupWindow()
     createHeader()
-    createTable(root)
+    table = createTable(root)
+    populateTable(table)
     root.mainloop()
