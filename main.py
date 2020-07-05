@@ -1,6 +1,9 @@
 import tkinter as tk
-import tkinter.ttk as ttk
 import csv
+
+sv_list = []
+bv_list = []
+
 
 def createHeader():
     label = tk.Label(
@@ -19,7 +22,6 @@ def createTable(window):
     tk.Label(table, text="Comments", anchor="w").grid(row=0, column=3, sticky="ew")
     tk.Label(table, text="Update", anchor="w").grid(row=0, column=4, sticky="ew")
     tk.Label(table, text="Delete", anchor="w").grid(row=0, column=5, sticky="ew")
-    table.pack(side="top", fill="both", expand=True, padx=10, pady=10)
     return table
 
 def populateTable(table):
@@ -29,30 +31,53 @@ def populateTable(table):
         idx = 1
         for row in reader:
             bgcolor = ('#E0FFFF', '#E6E6FA')[odd]
-            account = tk.Entry(table)
+            sv = tk.StringVar()
+            bv = tk.BooleanVar()
+            sv_list.append(sv)
+            bv_list.append(bv)
+
+            account = tk.Entry(table, textvariable=sv)
             account.insert(0, row['Account'])
             account.grid(row=idx, column=0, sticky="ew")
             account.configure({"background":bgcolor})
+            sv.trace("w", lambda name, index, mode, var=bv: callback(var))
+            # account.pack()
 
             username = tk.Entry(table)
             username.insert(0, row['Username'])
             username.grid(row=idx, column=1, sticky="ew")
             username.configure({"background":bgcolor})
+            # username.pack()
 
             password = tk.Entry(table)
             password.insert(0, row['Password'])
             password.grid(row=idx, column=2, sticky="ew")
             password.configure({"background":bgcolor})
+            # password.pack()
 
             comments = tk.Entry(table)
             comments.insert(0, row['Comments'])
             comments.grid(row=idx, column=3, sticky="ew")
             comments.configure({"background":bgcolor})
+            # comments.pack()
 
-            tk.Checkbutton(table, onvalue=True, offvalue=False).grid(row=idx, column=4, sticky="ew")
-            tk.Checkbutton(table, onvalue=True, offvalue=False).grid(row=idx, column=5, sticky="ew")
+            up_btn = tk.Checkbutton(table, variable=bv, onvalue=True, offvalue=False)
+            up_btn.grid(row=idx, column=4, sticky="ew")
+            # up_btn.pack()
+
+            del_btn = tk.Checkbutton(table, onvalue=True, offvalue=False)
+            del_btn.grid(row=idx, column=5, sticky="ew")
+            # del_btn.pack()
+
             odd = not odd
             idx += 1
+
+# def callbackUpdateCheck(event):
+#     print(event)
+
+def callback(bool_var):
+    print(bool_var)
+    bool_var.set(True)
 
 def setupWindow():
     window = tk.Tk()
@@ -73,4 +98,5 @@ if __name__ == '__main__':
     createHeader()
     table = createTable(root)
     populateTable(table)
+    table.pack(side="top", fill="both", expand=True, padx=10, pady=10)
     root.mainloop()
