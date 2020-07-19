@@ -1,118 +1,201 @@
-import tkinter as tk
 import csv
 
-#TODO convert the individual column lists into a single list of a data object
-ac_sv_list = []
-user_sv_list = []
-pass_sv_list = []
-comments_sv_list = []
-updt_bv_list = []
-del_bv_list = []
-numrows = 0
+from PyQt5.QtCore import Qt, QSize, QAbstractTableModel, QSortFilterProxyModel, pyqtSlot, QModelIndex
+from PyQt5.QtGui import QColor, QKeySequence
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTableView, QAction, QWidget, QHeaderView, QHBoxLayout, \
+  QSizePolicy, qApp, QFileDialog, QAbstractItemView, QPushButton
+# Only needed for access to command line arguments
+import sys
 
-def createHeader():
-    label = tk.Label(
-        text="Hello, Tkinter",
-        fg="black",  # Set the text color to white
-        bg="green yellow"  # Set the background color to black
+class CSVTableModel(QAbstractTableModel):
+  def __init__(self, data=None):
+    super(CSVTableModel, self).__init__()
+    self.load_data(data)
+
+  def load_data(self, data):
+    if data is None:
+      data = [
+        ["Col1", "Col2", "Col3"],
+        [4, 9, 2],
+        [1, 0, 0],
+        [3, 5, 0],
+        [3, 3, 2],
+        [7, 8, 9],
+      ]
+    self._headers = data[0]
+    self._data = data[1:]
+
+  def data(self, index, role):
+    if role == Qt.DisplayRole:
+      # See below for the nested-list data structure.
+      # .row() indexes into the outer list,
+      # .column() indexes into the sub-list
+      return self._data[index.row()][index.column()]
+    # elif role == Qt.BackgroundRole:
+    #   return QColor(Qt.white)
+    elif role == Qt.TextAlignmentRole:
+      return Qt.AlignCenter
+    elif role == Qt.EditRole:
+      return self._data[index.row()][index.column()]
+    return None
+
+  def setData(self, index, value, role):
+    if not index.isValid():
+      return False
+    if self._data[index.row()][index.column()] == value:
+      return False
+    self._data[index.row()][index.column()] = value
+    return True
+
+  def headerData(self, section, orientation, role):
+    if role != Qt.DisplayRole:
+      return None
+    if orientation == Qt.Horizontal:
+      return self._headers[section]
+    else:
+      return "{}".format(section)
+
+  def flags(self, index):
+    return Qt.ItemIsEnabled|Qt.ItemIsEditable|Qt.ItemIsSelectable
+
+  def insertRows(self , position , rows , item , parent=QModelIndex()):
+      # beginInsertRows (self, QModelIndex parent, int first, int last)
+      self.beginInsertRows(QModelIndex(),len(self.__data),len(self.__data)+1)
+      self._data.append(item) # Item must be an array
+      self.endInsertRows()
+      return True
+
+  def rowCount(self, index):
+    # The length of the outer list.
+    return len(self._data)
+
+  def columnCount(self, index):
+    # The following takes the first sub-list, and returns
+    # the length (only works if all rows are an equal length)
+    return len(self._data[0])
+
+class Widget(QWidget):
+  def __init__(self, data):
+    QWidget.__init__(self)
+
+    # Creating a QTableView
+    self.table_view = QTableView()
+    self.table_view.setAlternatingRowColors(True)
+    self.table_view.setSortingEnabled(True)
+    self.table_view.setSelectionBehavior(QAbstractItemView.SelectRows)
+    # QTableView Headers
+    self.horizontal_header = self.table_view.horizontalHeader()
+    self.vertical_header = self.table_view.verticalHeader()
+    # self.horizontal_header.setSectionResizeMode(
+    #   QHeaderView.ResizeToContents
+    # )
+    # self.horizontal_header.setStretchLastSection(True)
+    self.vertical_header.setSectionResizeMode(
+      QHeaderView.ResizeToContents
     )
-    label.pack()
+    self.vertical_header.setVisible(False)
 
-def createTable(window):
-    table = tk.LabelFrame(window, text="Passwords")
-    table.grid_columnconfigure(0, weight=1)
-    tk.Label(table, text="Account", anchor="w").grid(row=0, column=0, sticky="ew")
-    tk.Label(table, text="User", anchor="w").grid(row=0, column=1, sticky="ew")
-    tk.Label(table, text="Password", anchor="w").grid(row=0, column=2, sticky="ew")
-    tk.Label(table, text="Comments", anchor="w").grid(row=0, column=3, sticky="ew")
-    tk.Label(table, text="Update", anchor="w").grid(row=0, column=4, sticky="ew")
-    tk.Label(table, text="Delete", anchor="w").grid(row=0, column=5, sticky="ew")
-    return table
+    # QWidget Layout
+    self.main_layout = QHBoxLayout()
+    size = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+    ## Left layout
+    size.setHorizontalStretch(1)
+    self.table_view.setSizePolicy(size)
+    self.main_layout.addWidget(self.table_view)
 
-def populateTable(table):
-    with open('ids.csv') as f:
-        reader = csv.DictReader(f, delimiter=',')
-        for row in reader:
-            addRow(table, row)
+    self.addRowBtn = QPushButton("Add")
+    self.addRowBtn.clicked.connect(self.addRowBtn_clicked)
+    self.main_layout.addWidget(self.addRowBtn)
 
-def callback(bool_var):
-    print(bool_var)
-    bool_var.set(True)
+    # Set the layout to the QWidget
+    self.setLayout(self.main_layout)
 
-def addRow(table, row):
-    global numrows
-    numrows += 1
-    bgcolor = ('#E0FFFF', '#E6E6FA')[numrows % 2]
-    ac_sv = tk.StringVar()
-    ac_sv_list.append(ac_sv)
-    user_sv = tk.StringVar()
-    user_sv_list.append(user_sv)
-    pass_sv = tk.StringVar()
-    pass_sv_list.append(pass_sv)
-    comments_sv = tk.StringVar()
-    comments_sv_list.append(comments_sv)
-    updt_bv = tk.BooleanVar()
-    updt_bv_list.append(updt_bv)
-    del_bv = tk.BooleanVar()
-    del_bv_list.append(del_bv)
+    self.set_model(data)
 
-    account = tk.Entry(table, textvariable=ac_sv)
-    account.insert(0, row['Account'])
-    account.grid(row=numrows, column=0, sticky="ew")
-    account.configure({"background": bgcolor})
-    ac_sv.trace("w", lambda name, index, mode, var=updt_bv: callback(var))
+  def set_model(self, data):
+    # Getting the Model
+    model = CSVTableModel(data)
+    proxyModel = QSortFilterProxyModel()
+    proxyModel.setSourceModel(model)
+    self.model = proxyModel
+    self.table_view.setModel(self.model)
 
-    username = tk.Entry(table, textvariable=user_sv)
-    username.insert(0, row['Username'])
-    username.grid(row=numrows, column=1, sticky="ew")
-    username.configure({"background": bgcolor})
-    user_sv.trace("w", lambda name, index, mode, var=updt_bv: callback(var))
+  def update_model(self, data):
+    self.set_model(data)
+    self.table_view.update()
 
-    password = tk.Entry(table, textvariable=pass_sv)
-    password.insert(0, row['Password'])
-    password.grid(row=numrows, column=2, sticky="ew")
-    password.configure({"background": bgcolor})
-    pass_sv.trace("w", lambda name, index, mode, var=updt_bv: callback(var))
-
-    comments = tk.Entry(table, textvariable=comments_sv)
-    comments.insert(0, row['Comments'])
-    comments.grid(row=numrows, column=3, sticky="ew")
-    comments.configure({"background": bgcolor})
-    comments_sv.trace("w", lambda name, index, mode, var=updt_bv: callback(var))
-
-    up_btn = tk.Checkbutton(table, variable=updt_bv, onvalue=True, offvalue=False)
-    up_btn.grid(row=numrows, column=4, sticky="ew")
-
-    del_btn = tk.Checkbutton(table, variable=del_bv, onvalue=True, offvalue=False)
-    del_btn.grid(row=numrows, column=5, sticky="ew")
+  @pyqtSlot()
+  def addRowBtn_clicked(self):
+    # self.addRow(self.table_view, self.model)
     return
 
-def addBtnClicked(table):
-    print("ADD button clicked")
-    row = {'Account':'', 'Username':'', 'Password':'', 'Comments':''}
-    addRow(table, row)
+# Subclass QMainWindow to customize your application's main window
+class MainWindow(QMainWindow):
+  def __init__(self, widget):
+    super().__init__()
+    self.setWindowTitle("My App")
+    self.create_menu_bar()
+    self.table_widget = widget # self.centralwidget
+    self.setCentralWidget(self.table_widget)
+    geometry = qApp.desktop().availableGeometry(self)
+    # self.setFixedSize(geometry.width() * 0.8, geometry.height() * 0.7)
+    self.setMinimumSize(geometry.width() * 0.5, geometry.height() * 0.4)
+    # Status Bar
+    self.status = self.statusBar()
 
+  def create_menu_bar(self):
+      menu_bar = self.menuBar()
+      menu_bar.setNativeMenuBar(False)
+      #Menu
+      ## Exit QAction
+      exit_action = QAction("Exit", self)
+      exit_action.setShortcut(QKeySequence.Quit)
+      exit_action.setStatusTip("Exit App")
+      exit_action.triggered.connect(self.close)
 
-def setupWindow():
-    window = tk.Tk()
-    window.title("Password Manager")
-    width = 1000
-    height = 400
-    screen_width = window.winfo_screenwidth()
-    screen_height = window.winfo_screenheight()
-    x = (screen_width/2) - (width/2)
-    y = (screen_height/2) - (height/2)
-    window.geometry("%dx%d+%d+%d" % (width, height, x, y))
-    window.resizable(True, True)
-    return window
+      open_action = QAction("Open", self)
+      open_action.setShortcut(QKeySequence.Open)
+      open_action.setStatusTip("Open a CSV file")
+      open_action.triggered.connect(self.open_file)
 
-#============================INITIALIZATION==============================
-if __name__ == '__main__':
-    root = setupWindow()
-    createHeader()
-    table = createTable(root)
-    populateTable(table)
-    table.pack(side="top", fill="both", expand=True, padx=10, pady=10)
-    add_btn = add_btn = tk.Button(root, text='ADD', command=lambda: addBtnClicked(table))
-    add_btn.pack(side=tk.LEFT)
-    root.mainloop()
+      save_action = QAction("Save", self)
+      save_action.setShortcut(QKeySequence.Save)
+      save_action.setStatusTip("Save to CSV file")
+      save_action.triggered.connect(self.save_file)
+
+      file_menu = menu_bar.addMenu("File")
+      file_menu.addAction(open_action)
+      file_menu.addAction(save_action)
+      file_menu.addAction(exit_action)
+
+  def open_file(self):
+    file_name, filter = \
+      QFileDialog.getOpenFileName(self, "Open file", ".",
+                                  "All files (*);;CSV Files (*.csv)")
+
+    with open(file_name) as fin:
+      csv_data = [row for row in csv.reader(fin)]
+    self.table_widget.update_model(csv_data)
+    self.status.showMessage(file_name + " loaded")
+    return
+
+  def save_file(self):
+    file_name, filter = \
+      QFileDialog.getSaveFileName(self, "Open file", ".",
+                                  "All files (*);;CSV Files (*.csv)")
+    #TODO
+    return
+
+if __name__=='__main__':
+  # You need one (and only one) QApplication instance per application.
+  # Pass in sys.argv to allow command line arguments for your app.
+  # If you know you won't use command line arguments QApplication([]) works too.
+  app = QApplication(sys.argv)
+  # Create a Qt widget, which will be our window.
+  widget = Widget(None)
+  window = MainWindow(widget)
+  window.show()
+
+sys.exit(app.exec_())
+# Your application won't reach here until you exit and the event
+# loop has stopped.

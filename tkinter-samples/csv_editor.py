@@ -6,7 +6,7 @@ from tkinter import font as tkFont
 import csv
 
 ##
-# CSV GUI Editor written in python using tkinter
+# CSV GUI Editor written in python using tkinter-samples
 # - A lightweight csv editor
 # - (c) 2017 Sebastian Safari ssebs@ymail.com
 ##
