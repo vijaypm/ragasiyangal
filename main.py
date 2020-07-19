@@ -3,7 +3,7 @@ import csv
 from PyQt5.QtCore import Qt, QSize, QAbstractTableModel, QSortFilterProxyModel, pyqtSlot, QModelIndex
 from PyQt5.QtGui import QColor, QKeySequence
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTableView, QAction, QWidget, QHeaderView, QHBoxLayout, \
-  QSizePolicy, qApp, QFileDialog, QAbstractItemView, QPushButton
+  QSizePolicy, qApp, QFileDialog, QAbstractItemView, QPushButton, QVBoxLayout
 # Only needed for access to command line arguments
 import sys
 
@@ -27,16 +27,13 @@ class CSVTableModel(QAbstractTableModel):
 
   def data(self, index, role):
     if role == Qt.DisplayRole:
-      # See below for the nested-list data structure.
-      # .row() indexes into the outer list,
-      # .column() indexes into the sub-list
       return self._data[index.row()][index.column()]
-    # elif role == Qt.BackgroundRole:
-    #   return QColor(Qt.white)
     elif role == Qt.TextAlignmentRole:
       return Qt.AlignCenter
     elif role == Qt.EditRole:
       return self._data[index.row()][index.column()]
+    # elif role == Qt.BackgroundRole:
+    #   return QColor(Qt.white)
     return None
 
   def setData(self, index, value, role):
@@ -58,12 +55,22 @@ class CSVTableModel(QAbstractTableModel):
   def flags(self, index):
     return Qt.ItemIsEnabled|Qt.ItemIsEditable|Qt.ItemIsSelectable
 
-  def insertRows(self , position , rows , item , parent=QModelIndex()):
-      # beginInsertRows (self, QModelIndex parent, int first, int last)
-      self.beginInsertRows(QModelIndex(),len(self.__data),len(self.__data)+1)
-      self._data.append(item) # Item must be an array
-      self.endInsertRows()
-      return True
+  def insertRows(self , position , rows , parent=QModelIndex()):
+    # Ignore position. Always append to end of table
+    # self.beginInsertRows(QModelIndex(),position,position+rows-1)
+    self.beginInsertRows(QModelIndex(),len(self._data),len(self._data)+rows-1)
+    columns = len(self._headers)
+    for row in range(0, rows):
+      self._data.append([None] * columns)
+    self.endInsertRows()
+    return True
+
+  def removeRows(self , position , rows , parent=QModelIndex()):
+    self.beginRemoveRows(QModelIndex(),position,position+rows-1)
+    for row in range(0, rows):
+      del self._data[position]
+    self.endRemoveRows()
+    return True
 
   def rowCount(self, index):
     # The length of the outer list.
@@ -86,9 +93,9 @@ class Widget(QWidget):
     # QTableView Headers
     self.horizontal_header = self.table_view.horizontalHeader()
     self.vertical_header = self.table_view.verticalHeader()
-    # self.horizontal_header.setSectionResizeMode(
-    #   QHeaderView.ResizeToContents
-    # )
+    self.horizontal_header.setSectionResizeMode(
+      QHeaderView.Stretch
+    )
     # self.horizontal_header.setStretchLastSection(True)
     self.vertical_header.setSectionResizeMode(
       QHeaderView.ResizeToContents
@@ -96,16 +103,35 @@ class Widget(QWidget):
     self.vertical_header.setVisible(False)
 
     # QWidget Layout
-    self.main_layout = QHBoxLayout()
+    self.table_layout = QHBoxLayout()
     size = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
     ## Left layout
     size.setHorizontalStretch(1)
     self.table_view.setSizePolicy(size)
-    self.main_layout.addWidget(self.table_view)
+    self.table_layout.addWidget(self.table_view)
 
+    self.btn_layout = QHBoxLayout()
     self.addRowBtn = QPushButton("Add")
+    self.addRowBtn.setShortcut(QKeySequence.New)
+    self.addRowBtn.setToolTip("Add a new row")
     self.addRowBtn.clicked.connect(self.addRowBtn_clicked)
-    self.main_layout.addWidget(self.addRowBtn)
+    self.btn_layout.addWidget(self.addRowBtn)
+
+    self.delRowBtn = QPushButton("Delete")
+    self.delRowBtn.setShortcut(QKeySequence.Delete)
+    self.delRowBtn.setToolTip("Delete selected row")
+    self.delRowBtn.clicked.connect(self.delRowBtn_clicked)
+    self.btn_layout.addWidget(self.delRowBtn)
+
+    self.filterBtn = QPushButton("Find")
+    self.filterBtn.setShortcut(QKeySequence.Find)
+    self.filterBtn.setToolTip("Find a row")
+    self.filterBtn.clicked.connect(self.filterBtn_clicked)
+    self.btn_layout.addWidget(self.filterBtn)
+
+    self.main_layout = QVBoxLayout()
+    self.main_layout.addLayout(self.table_layout)
+    self.main_layout.addLayout(self.btn_layout)
 
     # Set the layout to the QWidget
     self.setLayout(self.main_layout)
@@ -126,7 +152,25 @@ class Widget(QWidget):
 
   @pyqtSlot()
   def addRowBtn_clicked(self):
-    # self.addRow(self.table_view, self.model)
+    self.model.insertRows(0, 1)
+    self.table_view.scrollToBottom()
+    return
+
+  @pyqtSlot()
+  def delRowBtn_clicked(self):
+    rows = self.table_view.selectionModel().selectedRows()
+    if len(rows) == 1:
+      if rows[0].isValid():
+        self.model.removeRows(rows[0].row(), 1)
+    else:
+      # TODO show error
+      print('ERROR: Multiple rows selected. For your safety, delete one row at a time')
+    return
+
+  @pyqtSlot()
+  def filterBtn_clicked(self):
+    # TODO
+    # https://doc.qt.io/qtforpython/PySide2/QtCore/QSortFilterProxyModel.html#filtering
     return
 
 # Subclass QMainWindow to customize your application's main window
@@ -135,11 +179,10 @@ class MainWindow(QMainWindow):
     super().__init__()
     self.setWindowTitle("My App")
     self.create_menu_bar()
-    self.table_widget = widget # self.centralwidget
+    self.table_widget = widget
     self.setCentralWidget(self.table_widget)
     geometry = qApp.desktop().availableGeometry(self)
-    # self.setFixedSize(geometry.width() * 0.8, geometry.height() * 0.7)
-    self.setMinimumSize(geometry.width() * 0.5, geometry.height() * 0.4)
+    self.setFixedSize(geometry.width() * 0.8, geometry.height() * 0.7)
     # Status Bar
     self.status = self.statusBar()
 
