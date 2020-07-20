@@ -214,8 +214,9 @@ class MainWindow(QMainWindow):
   def open_file(self):
     file_name, filter = \
       QFileDialog.getOpenFileName(self, "Open file", ".",
-                                  "All files (*);;CSV Files (*.csv)")
-
+                                  "CSV Files (*.csv *.txt);;All files (*)")
+    if not file_name:
+      return
     with open(file_name) as fin:
       csv_data = [row for row in csv.reader(fin)]
     self.table_widget.update_model(csv_data)
@@ -224,9 +225,29 @@ class MainWindow(QMainWindow):
 
   def save_file(self):
     file_name, filter = \
-      QFileDialog.getSaveFileName(self, "Open file", ".",
-                                  "All files (*);;CSV Files (*.csv)")
-    #TODO
+      QFileDialog.getSaveFileName(self, "Open file", "." + "/export.csv",
+                                  "CSV Files (*.csv *.txt);;All files (*)")
+    if not file_name:
+      return
+    with open(file_name, "w") as fileOutput:
+      writer = csv.writer(fileOutput)
+
+      # write csv headers
+      headers = [self.table_widget.model.headerData(c, Qt.Horizontal)
+                 for c in range(self.table_widget.model.columnCount())]
+      writer.writerow(headers)
+
+      #write csv rows
+      for row in range(self.table_widget.model.rowCount()):
+        rowdata = [
+          self.table_widget.model.data(
+            self.table_widget.model.index(row, column),
+            Qt.DisplayRole
+          )
+          for column in range(self.table_widget.model.columnCount())
+        ]
+        writer.writerow(rowdata)
+    self.status.showMessage(file_name + " saved")
     return
 
 if __name__=='__main__':
