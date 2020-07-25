@@ -1,27 +1,27 @@
 import csv
 
-from PyQt5.QtCore import Qt, QSize, QAbstractTableModel, QSortFilterProxyModel, pyqtSlot, QModelIndex
-from PyQt5.QtGui import QColor, QKeySequence
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTableView, QAction, QWidget, QHeaderView, QHBoxLayout, \
-  QSizePolicy, qApp, QFileDialog, QAbstractItemView, QPushButton, QVBoxLayout
+from PyQt5.QtCore import (Qt, QSize, QAbstractTableModel,
+                          QSortFilterProxyModel, pyqtSlot,
+                          QModelIndex, QDir, QObject,
+                          pyqtSignal)
+from PyQt5.QtGui import (QColor, QKeySequence)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableView,
+                             QAction, QWidget, QHeaderView, QHBoxLayout,
+                             QSizePolicy, qApp, QFileDialog, QAbstractItemView,
+                             QPushButton, QVBoxLayout, QInputDialog,
+                             QLineEdit, QMessageBox)
 # Only needed for access to command line arguments
 import sys
 
 class CSVTableModel(QAbstractTableModel):
+
   def __init__(self, data=None):
     super(CSVTableModel, self).__init__()
     self.load_data(data)
 
   def load_data(self, data):
     if data is None:
-      data = [
-        ["Col1", "Col2", "Col3"],
-        [4, 9, 2],
-        [1, 0, 0],
-        [3, 5, 0],
-        [3, 3, 2],
-        [7, 8, 9],
-      ]
+      data = [[],[]]
     self._headers = data[0]
     self._data = data[1:]
 
@@ -81,7 +81,7 @@ class CSVTableModel(QAbstractTableModel):
     # the length (only works if all rows are an equal length)
     return len(self._data[0])
 
-class Widget(QWidget):
+class TableWidget(QWidget):
   def __init__(self, data):
     QWidget.__init__(self)
 
@@ -112,7 +112,7 @@ class Widget(QWidget):
 
     self.btn_layout = QHBoxLayout()
     self.addRowBtn = QPushButton("Add")
-    self.addRowBtn.setShortcut(QKeySequence.New)
+    self.addRowBtn.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_Down))
     self.addRowBtn.setToolTip("Add a new row")
     self.addRowBtn.clicked.connect(self.addRowBtn_clicked)
     self.btn_layout.addWidget(self.addRowBtn)
@@ -137,6 +137,8 @@ class Widget(QWidget):
     self.setLayout(self.main_layout)
 
     self.set_model(data)
+    # TODO
+    # self.model.dataChanged.connect(self.parent().setStyleSheet("background-color: yellow;"))
 
   def set_model(self, data):
     # Getting the Model
@@ -163,8 +165,7 @@ class Widget(QWidget):
       if rows[0].isValid():
         self.model.removeRows(rows[0].row(), 1)
     else:
-      # TODO show error
-      print('ERROR: Multiple rows selected. For your safety, delete one row at a time')
+      QMessageBox.critical(self, "Multiple Rows Selected!" , "For your safety, delete one row at a time")
     return
 
   @pyqtSlot()
@@ -201,15 +202,25 @@ class MainWindow(QMainWindow):
       open_action.setStatusTip("Open a CSV file")
       open_action.triggered.connect(self.open_file)
 
+      new_action = QAction("New", self)
+      new_action.setShortcut(QKeySequence.New)
+      new_action.setStatusTip("Create a New document")
+      new_action.triggered.connect(self.new_file)
+
       save_action = QAction("Save", self)
       save_action.setShortcut(QKeySequence.Save)
       save_action.setStatusTip("Save to CSV file")
       save_action.triggered.connect(self.save_file)
 
       file_menu = menu_bar.addMenu("File")
+      file_menu.addAction(new_action)
       file_menu.addAction(open_action)
       file_menu.addAction(save_action)
       file_menu.addAction(exit_action)
+
+  def new_file(self):
+    csv_data = [['AccountName', 'Username', 'Password', 'Comments'], ['', '', '', '']]
+    self.table_widget.update_model(csv_data)
 
   def open_file(self):
     file_name, filter = \
@@ -217,10 +228,25 @@ class MainWindow(QMainWindow):
                                   "CSV Files (*.csv *.txt);;All files (*)")
     if not file_name:
       return
-    with open(file_name) as fin:
-      csv_data = [row for row in csv.reader(fin)]
-    self.table_widget.update_model(csv_data)
-    self.status.showMessage(file_name + " loaded")
+    num_tries = 2
+    while num_tries > 0:
+      password, ok = QInputDialog().getText(self, "Attention",
+                                        "Password:", QLineEdit.Password,
+                                        QDir().home().dirName())
+      if ok:
+        if password == "123456":
+          csv_data = self.decrypt_file(file_name, password)
+          if csv_data:
+            self.table_widget.update_model(csv_data)
+            self.status.showMessage(file_name + " loaded")
+            break
+        else:
+          num_tries = num_tries - 1
+          QMessageBox.critical(self,
+                            "Wrong Password!",
+                            "You entered the wrong password. Please try again")
+      else:
+        return
     return
 
   def save_file(self):
@@ -228,6 +254,9 @@ class MainWindow(QMainWindow):
       QFileDialog.getSaveFileName(self, "Open file", "." + "/export.csv",
                                   "CSV Files (*.csv *.txt);;All files (*)")
     if not file_name:
+      return
+    password = self.show_password_create()
+    if not password:
       return
     with open(file_name, "w") as fileOutput:
       writer = csv.writer(fileOutput)
@@ -250,13 +279,44 @@ class MainWindow(QMainWindow):
     self.status.showMessage(file_name + " saved")
     return
 
+  def decrypt_file(self, file_name, password):
+    #TODO
+    with open(file_name) as fin:
+      csv_data = [row for row in csv.reader(fin)]
+    return csv_data
+
+  def show_password_create(self):
+    password, confirm_password = '', None
+    ok = True
+    while ok and password != confirm_password:
+      password, ok = QInputDialog().getText(self, "Attention",
+                                            "Password:", QLineEdit.Password,
+                                            QDir().home().dirName())
+      if ok and password:
+        confirm_password, ok = QInputDialog().getText(self, "Attention",
+                                            "Re-enter Password to confirm:", QLineEdit.Password,
+                                            QDir().home().dirName())
+        if password != confirm_password:
+          QMessageBox.critical(self, "Mismatch!", "Passwords don't match")
+        else:
+          return password
+    return None
+
+  @pyqtSlot()
+  def set_background(self):
+    self.setStyleSheet("background-color: yellow;")
+
+  @pyqtSlot()
+  def reset_background(self):
+    self.setStyleSheet("background-color: grey;")
+
 if __name__=='__main__':
   # You need one (and only one) QApplication instance per application.
   # Pass in sys.argv to allow command line arguments for your app.
   # If you know you won't use command line arguments QApplication([]) works too.
   app = QApplication(sys.argv)
   # Create a Qt widget, which will be our window.
-  widget = Widget(None)
+  widget = TableWidget(None)
   window = MainWindow(widget)
   window.show()
 
