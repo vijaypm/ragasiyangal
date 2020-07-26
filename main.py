@@ -235,10 +235,6 @@ class MainWindow(QMainWindow):
       open_action.setStatusTip("Open a CSV file")
       open_action.triggered.connect(self.open_file)
 
-      import_action = QAction("Import", self)
-      import_action.setStatusTip("Import an unencrypted CSV file")
-      import_action.triggered.connect(self.import_file)
-
       new_action = QAction("New", self)
       new_action.setShortcut(QKeySequence.New)
       new_action.setStatusTip("Create a New document")
@@ -252,9 +248,15 @@ class MainWindow(QMainWindow):
       file_menu = menu_bar.addMenu("File")
       file_menu.addAction(new_action)
       file_menu.addAction(open_action)
-      file_menu.addAction(import_action)
       file_menu.addAction(save_action)
       file_menu.addAction(exit_action)
+
+      import_action = QAction("Import", self)
+      import_action.setStatusTip("Import an unencrypted CSV file")
+      import_action.triggered.connect(self.import_file)
+
+      other_menu = menu_bar.addMenu("Other")
+      other_menu.addAction(import_action)
 
   def new_file(self):
     csv_data = [['AccountName', 'Username', 'Password', 'Comments'], ['', '', '', '']]
