@@ -24,6 +24,9 @@ class CSVTableModel(QAbstractTableModel):
       data = [[],[]]
     self._headers = data[0]
     self._data = data[1:]
+    self.reset_state()
+
+  def reset_state(self):
     self._state = [{'new': False, 'modified': False, 'deleted': False}] * len(self._data)
 
   def data(self, index, role):
@@ -175,6 +178,9 @@ class TableWidget(QWidget):
     self.set_model(data)
     self.table_view.update()
 
+  def reset_model_state(self):
+    self.model.sourceModel().reset_state()
+
   @pyqtSlot()
   def addRowBtn_clicked(self):
     self.model.insertRows(0, 1)
@@ -275,12 +281,14 @@ class MainWindow(QMainWindow):
                                   "CSV Files (*.csv *.txt);;All files (*)")
     if not file_name:
       return
-    num_tries = 2
-    while num_tries > 0:
+    num_tries = 1
+    while num_tries <= 5 :
       password, ok = QInputDialog().getText(self, "Attention",
-                                        "Password:", QLineEdit.Password,
-                                        QDir().home().dirName())
+                                        "Password:",
+                                        QLineEdit.Password if num_tries <= 2 else QLineEdit.Normal,
+                                        "")
       if ok:
+        #TODO replace hardcoded password
         if password == "123456":
           csv_data = self.decrypt_file(file_name, password)
           if csv_data:
@@ -289,7 +297,7 @@ class MainWindow(QMainWindow):
             self.status.showMessage(file_name + " loaded")
             break
         else:
-          num_tries = num_tries - 1
+          num_tries = num_tries + 1
           QMessageBox.critical(self,
                             "Wrong Password!",
                             "You entered the wrong password. Please try again.")
@@ -313,6 +321,7 @@ class MainWindow(QMainWindow):
       return
     file_saved = self.encrypt_file(file_name, password)
     if file_saved:
+      self.table_widget.reset_model_state()
       self.reset_needs_save()
       self.status.showMessage(file_name + " saved")
 
@@ -346,17 +355,21 @@ class MainWindow(QMainWindow):
 
   def show_password_create(self):
     password, confirm_password = '', None
+    num_tries = 1
     ok = True
     while ok and password != confirm_password:
       password, ok = QInputDialog().getText(self, "Attention",
-                                            "Password:", QLineEdit.Password,
-                                            QDir().home().dirName())
+                                            "Password:",
+                                            QLineEdit.Password if num_tries <= 2 else QLineEdit.Normal,
+                                            "")
       if ok and password:
         confirm_password, ok = QInputDialog().getText(self, "Attention",
-                                            "Re-enter Password to confirm:", QLineEdit.Password,
-                                            QDir().home().dirName())
+                                            "Re-enter Password to confirm:",
+                                            QLineEdit.Password if num_tries <= 2 else QLineEdit.Normal,
+                                            "")
         if password != confirm_password:
           QMessageBox.critical(self, "Mismatch!", "Passwords don't match")
+          num_tries = num_tries + 1
         else:
           return password
     return None
