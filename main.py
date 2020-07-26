@@ -249,12 +249,17 @@ class MainWindow(QMainWindow):
           num_tries = num_tries - 1
           QMessageBox.critical(self,
                             "Wrong Password!",
-                            "You entered the wrong password. Please try again")
+                            "You entered the wrong password. Please try again.")
       else:
         return
     return
 
   def save_file(self):
+    if not self.needs_save:
+      QMessageBox.information(self,
+                              "Nothing to Save",
+                              "You have not entered any data.")
+      return
     file_name, filter = \
       QFileDialog.getSaveFileName(self, "Open file", "." + "/export.csv",
                                   "CSV Files (*.csv *.txt);;All files (*)")
