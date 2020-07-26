@@ -4,7 +4,7 @@ from PyQt5.QtCore import (Qt, QSize, QAbstractTableModel,
                           QSortFilterProxyModel, pyqtSlot,
                           QModelIndex, QDir, QObject,
                           pyqtSignal)
-from PyQt5.QtGui import (QColor, QKeySequence)
+from PyQt5.QtGui import (QColor, QKeySequence, QFont)
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableView,
                              QAction, QWidget, QHeaderView, QHBoxLayout,
                              QSizePolicy, qApp, QFileDialog, QAbstractItemView,
@@ -24,16 +24,25 @@ class CSVTableModel(QAbstractTableModel):
       data = [[],[]]
     self._headers = data[0]
     self._data = data[1:]
+    self._state = [[False, False]] * len(self._data)
 
   def data(self, index, role):
     if role == Qt.DisplayRole:
       return self._data[index.row()][index.column()]
+    elif role == Qt.FontRole:
+      sansFont = QFont("Helvetica", 14)
+      if self._state[index.row()][1]:
+        sansFont.setStrikeOut(True)
+      return sansFont
     elif role == Qt.TextAlignmentRole:
       return Qt.AlignCenter
     elif role == Qt.EditRole:
       return self._data[index.row()][index.column()]
-    # elif role == Qt.BackgroundRole:
-    #   return QColor(Qt.white)
+    elif role == Qt.BackgroundRole:
+      if self._state[index.row()][0]:
+        return QColor(Qt.yellow)
+      elif self._state[index.row()][1]:
+        return QColor(Qt.darkGray)
     return None
 
   def setData(self, index, value, role):
@@ -42,6 +51,8 @@ class CSVTableModel(QAbstractTableModel):
     if self._data[index.row()][index.column()] == value:
       return False
     self._data[index.row()][index.column()] = value
+    self._state[index.row()] = [True, False]
+    self.parent().table_view.clearSelection()
     self.parent().parent().set_needs_save()
     return True
 
@@ -63,14 +74,18 @@ class CSVTableModel(QAbstractTableModel):
     columns = len(self._headers)
     for row in range(0, rows):
       self._data.append([None] * columns)
+      self._state.append([False, False])
     self.endInsertRows()
     return True
 
   def removeRows(self , position , rows , parent=QModelIndex()):
-    self.beginRemoveRows(QModelIndex(),position,position+rows-1)
-    for row in range(0, rows):
-      del self._data[position]
-    self.endRemoveRows()
+    # self.beginRemoveRows(QModelIndex(),position,position+rows-1)
+    # for row in range(0, rows):
+    #   del self._data[position]
+    # self.endRemoveRows()
+    self._state[position] = [False, True]
+    print(position, "marked deleted")
+    self.dataChanged.emit(parent, parent, [])
     return True
 
   def rowCount(self, index):
@@ -205,6 +220,10 @@ class MainWindow(QMainWindow):
       open_action.setStatusTip("Open a CSV file")
       open_action.triggered.connect(self.open_file)
 
+      import_action = QAction("Import", self)
+      import_action.setStatusTip("Import an unencrypted CSV file")
+      import_action.triggered.connect(self.import_file)
+
       new_action = QAction("New", self)
       new_action.setShortcut(QKeySequence.New)
       new_action.setStatusTip("Create a New document")
@@ -218,6 +237,7 @@ class MainWindow(QMainWindow):
       file_menu = menu_bar.addMenu("File")
       file_menu.addAction(new_action)
       file_menu.addAction(open_action)
+      file_menu.addAction(import_action)
       file_menu.addAction(save_action)
       file_menu.addAction(exit_action)
 
@@ -225,6 +245,21 @@ class MainWindow(QMainWindow):
     csv_data = [['AccountName', 'Username', 'Password', 'Comments'], ['', '', '', '']]
     self.table_widget.update_model(csv_data)
     self.reset_needs_save()
+
+  def import_file(self):
+    file_name, filter = \
+      QFileDialog.getOpenFileName(self, "Open file", ".",
+                                  "CSV Files (*.csv *.txt);;All files (*)")
+    if not file_name:
+      return
+    with open(file_name) as fin:
+      csv_data = [row for row in csv.reader(fin)]
+    if csv_data:
+      self.table_widget.update_model(csv_data)
+      self.reset_needs_save()
+      self.status.showMessage(file_name + " loaded")
+    return
+
 
   def open_file(self):
     file_name, filter = \
