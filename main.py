@@ -268,6 +268,12 @@ class MainWindow(QMainWindow):
     password = self.show_password_create()
     if not password:
       return
+    file_saved = self.encrypt_file(file_name, password)
+    if file_saved:
+      self.reset_needs_save()
+      self.status.showMessage(file_name + " saved")
+
+  def encrypt_file(self, file_name, password):
     with open(file_name, "w") as fileOutput:
       writer = csv.writer(fileOutput)
 
@@ -276,6 +282,7 @@ class MainWindow(QMainWindow):
                  for c in range(self.table_widget.model.columnCount())]
       writer.writerow(headers)
 
+      #TODO encrypt rows
       #write csv rows
       for row in range(self.table_widget.model.rowCount()):
         rowdata = [
@@ -286,12 +293,10 @@ class MainWindow(QMainWindow):
           for column in range(self.table_widget.model.columnCount())
         ]
         writer.writerow(rowdata)
-    self.reset_needs_save()
-    self.status.showMessage(file_name + " saved")
-    return
+    return True
 
   def decrypt_file(self, file_name, password):
-    #TODO
+    #TODO decrypt rows
     with open(file_name) as fin:
       csv_data = [row for row in csv.reader(fin)]
     return csv_data
@@ -329,7 +334,6 @@ class MainWindow(QMainWindow):
     self.status.setStyleSheet("background-color : red")
     self.status.showMessage("WARNING: Data changed and needs to be saved")
 
-  @pyqtSlot()
   def reset_needs_save(self):
     self.needs_save = False
     self.statusBar().setStyleSheet("")
