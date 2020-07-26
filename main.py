@@ -24,14 +24,14 @@ class CSVTableModel(QAbstractTableModel):
       data = [[],[]]
     self._headers = data[0]
     self._data = data[1:]
-    self._state = [[False, False]] * len(self._data)
+    self._state = [{'new': False, 'modified': False, 'deleted': False}] * len(self._data)
 
   def data(self, index, role):
     if role == Qt.DisplayRole:
       return self._data[index.row()][index.column()]
     elif role == Qt.FontRole:
       sansFont = QFont("Helvetica", 14)
-      if self._state[index.row()][1]:
+      if self._state[index.row()]['deleted']:
         sansFont.setStrikeOut(True)
       return sansFont
     elif role == Qt.TextAlignmentRole:
@@ -39,9 +39,11 @@ class CSVTableModel(QAbstractTableModel):
     elif role == Qt.EditRole:
       return self._data[index.row()][index.column()]
     elif role == Qt.BackgroundRole:
-      if self._state[index.row()][0]:
-        return QColor(Qt.yellow)
-      elif self._state[index.row()][1]:
+      if self._state[index.row()]['new']:
+        return QColor(Qt.cyan)
+      elif self._state[index.row()]['modified']:
+          return QColor(Qt.yellow)
+      elif self._state[index.row()]['deleted']:
         return QColor(Qt.darkGray)
     return None
 
@@ -49,9 +51,12 @@ class CSVTableModel(QAbstractTableModel):
     if not index.isValid():
       return False
     if self._data[index.row()][index.column()] == value:
+      #if actual text has not changed, do nothing
       return False
     self._data[index.row()][index.column()] = value
-    self._state[index.row()] = [True, False]
+    if not self._state[index.row()]['new']:
+      #existing row, mark it as edited
+      self._state[index.row()] = {'new': False, 'modified': True, 'deleted': False}
     self.parent().table_view.clearSelection()
     self.parent().parent().set_needs_save()
     return True
@@ -74,18 +79,22 @@ class CSVTableModel(QAbstractTableModel):
     columns = len(self._headers)
     for row in range(0, rows):
       self._data.append([None] * columns)
-      self._state.append([False, False])
+      self._state.append({'new': True, 'modified': False, 'deleted': False})
     self.endInsertRows()
     return True
 
   def removeRows(self , position , rows , parent=QModelIndex()):
-    # self.beginRemoveRows(QModelIndex(),position,position+rows-1)
-    # for row in range(0, rows):
-    #   del self._data[position]
-    # self.endRemoveRows()
-    self._state[position] = [False, True]
-    print(position, "marked deleted")
-    self.dataChanged.emit(parent, parent, [])
+    if self._state[position]['new']:
+      #new row, just remove it from model and view
+      self.beginRemoveRows(QModelIndex(),position,position+rows-1)
+      for row in range(0, rows):
+        del self._data[position]
+      self.endRemoveRows()
+    else:
+      #existing row, mark it for deletion
+      self._state[position] = {'new': False, 'modified': False, 'deleted': True}
+      print(position, "marked deleted")
+      self.dataChanged.emit(parent, parent, [])
     return True
 
   def rowCount(self, index):
