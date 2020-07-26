@@ -15,8 +15,8 @@ import sys
 
 class CSVTableModel(QAbstractTableModel):
 
-  def __init__(self, data=None):
-    super(CSVTableModel, self).__init__()
+  def __init__(self, parent=None, data=None):
+    super(CSVTableModel, self).__init__(parent)
     self.load_data(data)
 
   def load_data(self, data):
@@ -42,6 +42,7 @@ class CSVTableModel(QAbstractTableModel):
     if self._data[index.row()][index.column()] == value:
       return False
     self._data[index.row()][index.column()] = value
+    self.parent().parent().set_needs_save()
     return True
 
   def headerData(self, section, orientation, role):
@@ -137,12 +138,10 @@ class TableWidget(QWidget):
     self.setLayout(self.main_layout)
 
     self.set_model(data)
-    # TODO
-    # self.model.dataChanged.connect(self.parent().setStyleSheet("background-color: yellow;"))
 
   def set_model(self, data):
     # Getting the Model
-    model = CSVTableModel(data)
+    model = CSVTableModel(self, data)
     proxyModel = QSortFilterProxyModel()
     proxyModel.setSourceModel(model)
     self.model = proxyModel
@@ -164,6 +163,7 @@ class TableWidget(QWidget):
     if len(rows) == 1:
       if rows[0].isValid():
         self.model.removeRows(rows[0].row(), 1)
+        self.parent().set_needs_save()
     else:
       QMessageBox.critical(self, "Multiple Rows Selected!" , "For your safety, delete one row at a time")
     return
@@ -176,16 +176,19 @@ class TableWidget(QWidget):
 
 # Subclass QMainWindow to customize your application's main window
 class MainWindow(QMainWindow):
+
   def __init__(self, widget):
     super().__init__()
     self.setWindowTitle("My App")
     self.create_menu_bar()
+    widget.setParent(self)
     self.table_widget = widget
     self.setCentralWidget(self.table_widget)
     geometry = qApp.desktop().availableGeometry(self)
     self.setFixedSize(geometry.width() * 0.8, geometry.height() * 0.7)
     # Status Bar
     self.status = self.statusBar()
+    self.needs_save = False
 
   def create_menu_bar(self):
       menu_bar = self.menuBar()
@@ -221,6 +224,7 @@ class MainWindow(QMainWindow):
   def new_file(self):
     csv_data = [['AccountName', 'Username', 'Password', 'Comments'], ['', '', '', '']]
     self.table_widget.update_model(csv_data)
+    self.reset_needs_save()
 
   def open_file(self):
     file_name, filter = \
@@ -238,6 +242,7 @@ class MainWindow(QMainWindow):
           csv_data = self.decrypt_file(file_name, password)
           if csv_data:
             self.table_widget.update_model(csv_data)
+            self.reset_needs_save()
             self.status.showMessage(file_name + " loaded")
             break
         else:
@@ -276,6 +281,7 @@ class MainWindow(QMainWindow):
           for column in range(self.table_widget.model.columnCount())
         ]
         writer.writerow(rowdata)
+    self.reset_needs_save()
     self.status.showMessage(file_name + " saved")
     return
 
@@ -302,13 +308,27 @@ class MainWindow(QMainWindow):
           return password
     return None
 
-  @pyqtSlot()
-  def set_background(self):
-    self.setStyleSheet("background-color: yellow;")
+  def closeEvent(self, event):
+    if self.needs_save:
+      reply = QMessageBox.question(self, 'Window Close',
+                                   'You have unsaved changes.\n Are you sure you want to close the window?',
+                                   QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+      if reply == QMessageBox.No:
+        event.ignore()
+        return
+    event.accept()
+
+  def set_needs_save(self):
+    self.needs_save = True
+    self.status.setStyleSheet("background-color : red")
+    self.status.showMessage("WARNING: Data changed and needs to be saved")
 
   @pyqtSlot()
-  def reset_background(self):
-    self.setStyleSheet("background-color: grey;")
+  def reset_needs_save(self):
+    self.needs_save = False
+    self.statusBar().setStyleSheet("")
+    self.status.showMessage("")
 
 if __name__=='__main__':
   # You need one (and only one) QApplication instance per application.
