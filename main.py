@@ -265,10 +265,9 @@ class MainWindow(QMainWindow):
       csv_data = [row for row in csv.reader(fin)]
     if csv_data:
       self.table_widget.update_model(csv_data)
-      self.reset_needs_save()
-      self.status.showMessage(file_name + " loaded")
+      self.set_needs_save()
+      self.status.showMessage(file_name + " imported. Needs to be saved")
     return
-
 
   def open_file(self):
     file_name, filter = \
