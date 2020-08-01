@@ -1,5 +1,8 @@
 import csv
 
+# Needed for PyQt5
+from typing import List
+
 from PyQt5.QtCore import (Qt, QSize, QAbstractTableModel,
                           QSortFilterProxyModel, pyqtSlot,
                           QModelIndex, QDir, QObject,
@@ -12,6 +15,18 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableView,
                              QLineEdit, QMessageBox)
 # Only needed for access to command line arguments
 import sys
+
+# Needed for crypto
+import os
+import base64
+from datetime import datetime
+from cryptography.fernet import Fernet
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import (
+  Cipher, algorithms, modes
+)
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 class CSVTableModel(QAbstractTableModel):
 
@@ -328,15 +343,25 @@ class MainWindow(QMainWindow):
       self.status.showMessage(file_name + " saved")
 
   def encrypt_file(self, file_name, password):
+    # generate a key using password and random salt
+    password_bytes = bytes(password, 'utf-8')
+    salt_bytes = os.urandom(32)
+    key = Crypto.derive_key(password_bytes, salt_bytes)
+
+    # start writing to file
     with open(file_name, "w") as fileOutput:
+      # write salt to file as a comment metadata
+      # https://www.w3.org/TR/tabular-data-model/#embedded-metadata
+      fileOutput.write('# ' + base64.urlsafe_b64encode(salt_bytes).decode('utf-8') + '\n')
+
+      # prepare to write csv table data
       writer = csv.writer(fileOutput)
 
       # write csv headers
       headers = [self.table_widget.model.headerData(c, Qt.Horizontal)
                  for c in range(self.table_widget.model.columnCount())]
-      writer.writerow(headers)
+      writer.writerow(Crypto.encrypt_row(key, headers))
 
-      #TODO encrypt rows
       #write csv rows
       for row in range(self.table_widget.model.rowCount()):
         rowdata = [
@@ -346,13 +371,16 @@ class MainWindow(QMainWindow):
           )
           for column in range(self.table_widget.model.columnCount())
         ]
-        writer.writerow(rowdata)
+        writer.writerow(Crypto.encrypt_row(key, rowdata))
     return True
 
   def decrypt_file(self, file_name, password):
-    #TODO decrypt rows
+    password_bytes = bytes(password, "utf-8")
     with open(file_name) as fin:
-      csv_data = [row for row in csv.reader(fin)]
+      reader = csv.reader(fin)
+      salt_bytes = base64.urlsafe_b64decode(bytes(next(reader, None)[0].lstrip('#').strip(), 'utf-8'))
+      key = Crypto.derive_key(password_bytes, salt_bytes)
+      csv_data = [Crypto.decrypt_row(key, row) for row in csv.reader(fin)]
     return csv_data
 
   def show_password_create(self):
@@ -397,6 +425,101 @@ class MainWindow(QMainWindow):
     self.statusBar().setStyleSheet("")
     self.status.showMessage("")
 
+class Crypto:
+
+  @classmethod
+  def get_fernet(cls, password:bytes, salt: bytes):
+    kdf = PBKDF2HMAC(
+      algorithm=hashes.SHA256(),
+      length=32,
+      salt=salt,
+      iterations=100000,
+      backend=default_backend()
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(password))
+    f = Fernet(key)
+    return f
+
+  @classmethod
+  def derive_key(cls, password:bytes, salt:bytes):
+    kdf = PBKDF2HMAC(
+      algorithm=hashes.SHA256(),
+      length=32,
+      salt=salt,
+      iterations=100000,
+      backend=default_backend()
+    )
+    key = kdf.derive(password)
+    return key
+
+  @classmethod
+  def encrypt_aesgcm(cls, key, plaintext:bytes, associated_data:bytes):
+    # Generate a random 96-bit IV.
+    iv = os.urandom(12)
+
+    # Construct an AES-GCM Cipher object with the given key and a
+    # randomly generated IV.
+    encryptor = Cipher(
+      algorithms.AES(key),
+      modes.GCM(iv),
+      backend=default_backend()
+    ).encryptor()
+
+    # associated_data will be authenticated but not encrypted,
+    # it must also be passed in on decryption.
+    encryptor.authenticate_additional_data(associated_data)
+
+    # Encrypt the plaintext and get the associated ciphertext.
+    # GCM does not require padding.
+    ciphertext = encryptor.update(plaintext) + encryptor.finalize()
+
+    return (iv, ciphertext, encryptor.tag)
+
+  @classmethod
+  def decrypt_aesgcm(cls, key, associated_data:bytes, iv:bytes, ciphertext:bytes, tag:bytes):
+    # Construct a Cipher object, with the key, iv, and additionally the
+    # GCM tag used for authenticating the message.
+    decryptor = Cipher(
+      algorithms.AES(key),
+      modes.GCM(iv, tag),
+      backend=default_backend()
+    ).decryptor()
+
+    # We put associated_data back in or the tag will fail to verify
+    # when we finalize the decryptor.
+    decryptor.authenticate_additional_data(associated_data)
+
+    # Decryption gets us the authenticated plaintext.
+    # If the tag does not match an InvalidTag exception will be raised.
+    return decryptor.update(ciphertext) + decryptor.finalize()
+
+  @classmethod
+  def encrypt_row(cls, key, row:List[str]):
+    associated_data = bytes(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], 'utf-8')
+    encr_row = []
+    for field in row:
+      field_bytes = bytes(field, 'utf-8')
+      iv, ciphertext, tag = Crypto.encrypt_aesgcm(key, field_bytes, associated_data)
+      encr_field = base64.urlsafe_b64encode(associated_data).decode('utf-8') + '|' \
+                  + base64.urlsafe_b64encode(ciphertext).decode('utf-8') + '|' \
+                  + base64.urlsafe_b64encode(iv).decode('utf-8') + '|' \
+                  + base64.urlsafe_b64encode(tag).decode('utf-8')
+      encr_row.append(encr_field)
+    return encr_row
+
+  @classmethod
+  def decrypt_row(cls, key, encr_row):
+    row = []
+    for field in encr_row:
+      field_splits = field.split('|')
+      associated_data = base64.urlsafe_b64decode(bytes(field_splits[0], 'utf-8'))
+      ciphertext = base64.urlsafe_b64decode(bytes(field_splits[1], 'utf-8'))
+      iv = base64.urlsafe_b64decode(bytes(field_splits[2], 'utf-8'))
+      tag = base64.urlsafe_b64decode(bytes(field_splits[3], 'utf-8'))
+      plaintext_bytes = Crypto.decrypt_aesgcm(key, associated_data, iv, ciphertext, tag)
+      row.append(plaintext_bytes.decode('utf-8'))
+    return row
+
 if __name__=='__main__':
   # You need one (and only one) QApplication instance per application.
   # Pass in sys.argv to allow command line arguments for your app.
@@ -406,7 +529,6 @@ if __name__=='__main__':
   widget = TableWidget(None)
   window = MainWindow(widget)
   window.show()
-
-sys.exit(app.exec_())
+  sys.exit(app.exec_())
 # Your application won't reach here until you exit and the event
 # loop has stopped.
