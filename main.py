@@ -3,10 +3,9 @@ import csv
 # Needed for PyQt5
 from typing import List
 
-from PyQt5.QtCore import (Qt, QSize, QAbstractTableModel,
+from PyQt5.QtCore import (Qt, QAbstractTableModel,
                           QSortFilterProxyModel, pyqtSlot,
-                          QModelIndex, QDir, QObject,
-                          pyqtSignal)
+                          QModelIndex, QRegExp)
 from PyQt5.QtGui import (QColor, QKeySequence, QFont)
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableView,
                              QAction, QWidget, QHeaderView, QHBoxLayout,
@@ -124,6 +123,18 @@ class CSVTableModel(QAbstractTableModel):
     # the length (only works if all rows are an equal length)
     return len(self._data[0])
 
+class CustomSortFilterProxyModel(QSortFilterProxyModel):
+  def filterAcceptsRow(self, row_num, parent):
+    print(row_num)
+    print(self.filterRegExp())
+    filter_string = self.filterRegExp().pattern()
+    print(filter_string)
+    model = self.sourceModel()
+    row = model.row(row_num)
+    # tests = [self.filterRegExp() in row[i] for i in range(0,1)]
+    # return True in tests
+    return True
+
 class TableWidget(QWidget):
   def __init__(self, data):
     QWidget.__init__(self)
@@ -215,8 +226,13 @@ class TableWidget(QWidget):
 
   @pyqtSlot()
   def filterBtn_clicked(self):
-    # TODO
     # https://doc.qt.io/qtforpython/PySide2/QtCore/QSortFilterProxyModel.html#filtering
+    # TODO
+    text, okPressed = QInputDialog.getText(self, "Find Text", "Text:", QLineEdit.Normal, "")
+    if okPressed:
+      print(text)
+      filter_regexp = QRegExp(text, Qt.CaseInsensitive, QRegExp.RegExp)
+      self.model.setFilterRegExp(filter_regexp)
     return
 
 # Subclass QMainWindow to customize your application's main window
@@ -305,14 +321,16 @@ class MainWindow(QMainWindow):
                                         QLineEdit.Password if num_tries <= 2 else QLineEdit.Normal,
                                         "")
       if ok:
-        #TODO replace hardcoded password
-        if password == "123456":
+        csv_data = None
+        try:
           csv_data = self.decrypt_file(file_name, password)
-          if csv_data:
-            self.table_widget.update_model(csv_data)
-            self.reset_needs_save()
-            self.status.showMessage(file_name + " loaded")
-            break
+        except:
+          pass
+        if csv_data:
+          self.table_widget.update_model(csv_data)
+          self.reset_needs_save()
+          self.status.showMessage(file_name + " loaded")
+          break
         else:
           num_tries = num_tries + 1
           QMessageBox.critical(self,
