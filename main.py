@@ -533,6 +533,9 @@ class Crypto:
     associated_data = bytes(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], 'utf-8')
     encr_row = []
     for field in row:
+      if not field:
+        encr_row.append('')
+        continue
       field_bytes = bytes(field, 'utf-8')
       iv, ciphertext, tag = Crypto.encrypt_aesgcm(key, field_bytes, associated_data)
       encr_field = base64.urlsafe_b64encode(associated_data).decode('utf-8') + Crypto.delimiter \
@@ -546,6 +549,9 @@ class Crypto:
   def decrypt_row(cls, key, encr_row):
     row = []
     for field in encr_row:
+      if not field:
+        row.append('')
+        continue
       field_splits = field.split(Crypto.delimiter)
       associated_data = base64.urlsafe_b64decode(bytes(field_splits[0], 'utf-8'))
       ciphertext = base64.urlsafe_b64decode(bytes(field_splits[1], 'utf-8'))
