@@ -129,9 +129,17 @@ class CSVTableModel(QAbstractTableModel):
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
   def filterAcceptsRow(self, row_num, parent):
     filterString = self.filterRegExp().pattern()
+    if not filterString:
+      # nothing to filter
+      return True
     model = self.sourceModel()
     row = model.row(row_num)
-    tests = [filterString in col for col in row]
+    if not row:
+      return False
+    tests = [filterString in col for col in filter(None,row)]
+    if not tests:
+      # brand new row with None in all columns
+      return True
     return True in tests
 
 class TableWidget(QWidget):
@@ -226,12 +234,20 @@ class TableWidget(QWidget):
 
   @pyqtSlot()
   def filterBtn_clicked(self):
+    # filterBtn = self.sender()
     # https://doc.qt.io/qtforpython/PySide2/QtCore/QSortFilterProxyModel.html#filtering
     text, okPressed = QInputDialog.getText(self, "Find Text", "Text:", QLineEdit.Normal, "")
     if okPressed:
-      filterRegexp = QRegExp(text, Qt.CaseInsensitive, QRegExp.RegExp)
+      filterRegexp = QRegExp(text, Qt.CaseSensitive, QRegExp.RegExp)
       self.model.setFilterRegExp(filterRegexp)
-      # TODO change state of find to Clear Filter
+      if text:
+        self.filterBtn.setText("Clear Filter: " + text)
+        self.filterBtn.setStyleSheet("background-color: red")
+      else:
+        self.filterBtn.setText("Filter")
+        self.filterBtn.setStyleSheet("")
+      self.filterBtn.setShortcut(QKeySequence.Find)
+      self.filterBtn.setToolTip("Filter rows")
     return
 
 # Subclass QMainWindow to customize your application's main window
@@ -444,6 +460,8 @@ class MainWindow(QMainWindow):
 
 class Crypto:
 
+  delimiter = '|'
+
   @classmethod
   def get_fernet(cls, password:bytes, salt: bytes):
     kdf = PBKDF2HMAC(
@@ -517,9 +535,9 @@ class Crypto:
     for field in row:
       field_bytes = bytes(field, 'utf-8')
       iv, ciphertext, tag = Crypto.encrypt_aesgcm(key, field_bytes, associated_data)
-      encr_field = base64.urlsafe_b64encode(associated_data).decode('utf-8') + '|' \
-                  + base64.urlsafe_b64encode(ciphertext).decode('utf-8') + '|' \
-                  + base64.urlsafe_b64encode(iv).decode('utf-8') + '|' \
+      encr_field = base64.urlsafe_b64encode(associated_data).decode('utf-8') + Crypto.delimiter \
+                  + base64.urlsafe_b64encode(ciphertext).decode('utf-8') + Crypto.delimiter \
+                  + base64.urlsafe_b64encode(iv).decode('utf-8') + Crypto.delimiter \
                   + base64.urlsafe_b64encode(tag).decode('utf-8')
       encr_row.append(encr_field)
     return encr_row
@@ -528,7 +546,7 @@ class Crypto:
   def decrypt_row(cls, key, encr_row):
     row = []
     for field in encr_row:
-      field_splits = field.split('|')
+      field_splits = field.split(Crypto.delimiter)
       associated_data = base64.urlsafe_b64decode(bytes(field_splits[0], 'utf-8'))
       ciphertext = base64.urlsafe_b64decode(bytes(field_splits[1], 'utf-8'))
       iv = base64.urlsafe_b64decode(bytes(field_splits[2], 'utf-8'))
