@@ -255,7 +255,7 @@ class MainWindow(QMainWindow):
 
   def __init__(self, widget):
     super().__init__()
-    self.setWindowTitle("My App")
+    self.setWindowTitle("Yet another Password Manager :-)")
     self.create_menu_bar()
     widget.setParent(self)
     self.table_widget = widget
@@ -303,6 +303,19 @@ class MainWindow(QMainWindow):
 
       other_menu = menu_bar.addMenu("Other")
       other_menu.addAction(import_action)
+
+      about_action = QAction("About", self)
+      about_action.setStatusTip("About this app")
+      about_action.triggered.connect(self.about)
+
+      about_menu = menu_bar.addMenu("About")
+      about_menu.addAction(about_action)
+
+
+  def about(self):
+    QMessageBox.about(self, "About YaPM",
+                      "This software comes without warranty, liability or support! \n" + \
+                      "For more information, check out https://github.com/vijaypm/yapm")
 
   def new_file(self):
     csv_data = [['AccountName', 'Username', 'Password', 'Comments'], ['', '', '', '']]
