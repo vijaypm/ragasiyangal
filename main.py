@@ -340,6 +340,7 @@ class MainWindow(QMainWindow):
         try:
           csv_data = self.decrypt_file(file_name, password)
         except:
+          print(sys.exc_info())
           pass
         if csv_data:
           self.table_widget.update_model(csv_data)
