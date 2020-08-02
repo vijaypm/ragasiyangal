@@ -123,17 +123,16 @@ class CSVTableModel(QAbstractTableModel):
     # the length (only works if all rows are an equal length)
     return len(self._data[0])
 
+  def row(self, row_num):
+    return self._data[row_num]
+
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
   def filterAcceptsRow(self, row_num, parent):
-    print(row_num)
-    print(self.filterRegExp())
-    filter_string = self.filterRegExp().pattern()
-    print(filter_string)
+    filterString = self.filterRegExp().pattern()
     model = self.sourceModel()
     row = model.row(row_num)
-    # tests = [self.filterRegExp() in row[i] for i in range(0,1)]
-    # return True in tests
-    return True
+    tests = [filterString in col for col in row]
+    return True in tests
 
 class TableWidget(QWidget):
   def __init__(self, data):
@@ -177,9 +176,9 @@ class TableWidget(QWidget):
     self.delRowBtn.clicked.connect(self.delRowBtn_clicked)
     self.btn_layout.addWidget(self.delRowBtn)
 
-    self.filterBtn = QPushButton("Find")
+    self.filterBtn = QPushButton("Filter")
     self.filterBtn.setShortcut(QKeySequence.Find)
-    self.filterBtn.setToolTip("Find a row")
+    self.filterBtn.setToolTip("Filter rows")
     self.filterBtn.clicked.connect(self.filterBtn_clicked)
     self.btn_layout.addWidget(self.filterBtn)
 
@@ -195,7 +194,8 @@ class TableWidget(QWidget):
   def set_model(self, data):
     # Getting the Model
     model = CSVTableModel(self, data)
-    proxyModel = QSortFilterProxyModel()
+    # proxyModel = QSortFilterProxyModel()
+    proxyModel = CustomSortFilterProxyModel()
     proxyModel.setSourceModel(model)
     self.model = proxyModel
     self.table_view.setModel(self.model)
@@ -227,12 +227,11 @@ class TableWidget(QWidget):
   @pyqtSlot()
   def filterBtn_clicked(self):
     # https://doc.qt.io/qtforpython/PySide2/QtCore/QSortFilterProxyModel.html#filtering
-    # TODO
     text, okPressed = QInputDialog.getText(self, "Find Text", "Text:", QLineEdit.Normal, "")
     if okPressed:
-      print(text)
-      filter_regexp = QRegExp(text, Qt.CaseInsensitive, QRegExp.RegExp)
-      self.model.setFilterRegExp(filter_regexp)
+      filterRegexp = QRegExp(text, Qt.CaseInsensitive, QRegExp.RegExp)
+      self.model.setFilterRegExp(filterRegexp)
+      # TODO change state of find to Clear Filter
     return
 
 # Subclass QMainWindow to customize your application's main window
