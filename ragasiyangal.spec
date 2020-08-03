@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['yapm.py'],
+a = Analysis(['ragasiyangal.py'],
              pathex=['/Users/vijay/work/mypython/passwdmgr'],
              binaries=[],
              datas=[],
@@ -23,17 +23,17 @@ exe = EXE(pyz,
           a.zipfiles,
           a.datas,
           [],
-          name='yapm',
+          name='ragasiyangal',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
-          console=False , icon='yapm.icns')
+          console=False , icon='ragasiyangal.icns')
 app = BUNDLE(exe,
-             name='yapm.app',
-             icon='yapm.icns',
+             name='ragasiyangal.app',
+             icon='ragasiyangal.icns',
              bundle_identifier=None,
              info_plist={
              'NSHighResolutionCapable':'True'

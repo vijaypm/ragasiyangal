@@ -255,7 +255,7 @@ class MainWindow(QMainWindow):
 
   def __init__(self, widget):
     super().__init__()
-    self.setWindowTitle("Yet another Password Manager :-)")
+    self.setWindowTitle("Ragasiyangal - Password Manager")
     self.create_menu_bar()
     widget.setParent(self)
     self.table_widget = widget

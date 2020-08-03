@@ -1,4 +1,4 @@
-# Yet Another Password Manager
+# Ragasiyangal is a Password Manager
 
 
 ## Motivation
