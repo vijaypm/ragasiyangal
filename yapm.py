@@ -261,7 +261,7 @@ class MainWindow(QMainWindow):
     self.table_widget = widget
     self.setCentralWidget(self.table_widget)
     geometry = qApp.desktop().availableGeometry(self)
-    self.setFixedSize(geometry.width() * 0.8, geometry.height() * 0.7)
+    self.setMinimumSize(geometry.width() * 0.8, geometry.height() * 0.7)
     # Status Bar
     self.status = self.statusBar()
     self.needs_save = False
