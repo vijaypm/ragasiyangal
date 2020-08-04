@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['ragasiyangal.py'],
-             pathex=['/Users/vijay/work/mypython/passwdmgr'],
+             pathex=['/home/vijay/Work/myApps/ragasiyangal'],
              binaries=[],
              datas=[],
              hiddenimports=[],
@@ -31,10 +31,3 @@ exe = EXE(pyz,
           upx_exclude=[],
           runtime_tmpdir=None,
           console=False , icon='ragasiyangal.icns')
-app = BUNDLE(exe,
-             name='ragasiyangal.app',
-             icon='ragasiyangal.icns',
-             bundle_identifier=None,
-             info_plist={
-             'NSHighResolutionCapable':'True'
-             })
