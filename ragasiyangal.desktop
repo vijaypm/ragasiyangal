@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Ragasiyangal
+Comment=A simple secure Password Manager
+Exec=ragasiyangal
+Icon=ragasiyangal.png
+Categories=Office;
