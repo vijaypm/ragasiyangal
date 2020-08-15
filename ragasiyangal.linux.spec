@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['ragasiyangal.py'],
-             pathex=['/home/vijay/Work/myApps/ragasiyangal'],
+             pathex=[],
              binaries=[],
              datas=[],
              hiddenimports=[],
@@ -30,4 +30,4 @@ exe = EXE(pyz,
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
-          console=False , icon='ragasiyangal.icns')
+          console=False , icon='ragasiyangal.png')
