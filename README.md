@@ -25,7 +25,7 @@ Once you have a document open, you can add, edit or delete rows. As you work wit
 
 #### qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
 
-If you see an error like this, try the suggestions listed here (https://askubuntu.com/questions/308128/failed-to-load-platform-plugin-xcb-while-launching-qt5-app-on-linux-without). In particular, try reinstalling libxcb-xinerama0 :
+When you first launch the app on Linux, you might run into this error. Try the suggestions listed here (https://askubuntu.com/questions/308128/failed-to-load-platform-plugin-xcb-while-launching-qt5-app-on-linux-without). In particular, try reinstalling libxcb-xinerama0 :
 `
 sudo apt-get install --reinstall libxcb-xinerama0
 `
