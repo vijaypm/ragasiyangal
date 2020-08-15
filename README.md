@@ -9,11 +9,17 @@ The motivation for this project is two-fold:
 
 The answer is 'yes'. 
 
-This project encapsulates all the logic into a single python module, and has no external server or database dependencies.
+This project encapsulates all the logic into a single python module, is open source and has no external server or database dependencies. So, you can easily audit the entire source code and be confident that the app is safe to use. 
 
 ## User Guide
+You can download the binaries from https://github.com/vijaypm/ragasiyangal/releases
 
+Once you install and launch the app, you can choose one of three options:
+1. Import a csv file that has the data you want to protect. Click on **Other** menu -> choose **Import** option
+2. Start a new secrets file. Click on **File** menu -> choose **New** option or press **Ctrl-N**
+3. Open an existing ragasiyangal encrypted file. Click on **File** menu -> choose **Open** option or press **Ctrl-O**
 
+Once you have a document open, you can add, edit or delete rows. As you work with a document, the app provides you several visual clues with bold colors to remind you to save the changes.
 
 ### Troubleshooting
 
