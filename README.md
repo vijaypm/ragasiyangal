@@ -42,8 +42,11 @@ pip install -r requirements.txt
 `
 To make a distributable binary, you can run
 `
+
 pip install pyinstaller
+
 pyinstaller ragasiyangal.mac_app.spec #to generate Mac binary
+
 pyinstaller ragasiyangal.linux.spec #to generate Linux binary
 `
 
