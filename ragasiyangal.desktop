@@ -2,6 +2,6 @@
 Type=Application
 Name=Ragasiyangal
 Comment=A simple secure Password Manager
-Exec=ragasiyangal
-Icon=ragasiyangal.png
+Exec=/opt/ragasiyangal/ragasiyangal
+Icon=/opt/ragasiyangal/ragasiyangal.png
 Categories=Office;
