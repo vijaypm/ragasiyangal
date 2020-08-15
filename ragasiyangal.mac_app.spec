@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['ragasiyangal.py'],
-             pathex=['/Users/vijay/work/mypython/passwdmgr'],
+             pathex=[],
              binaries=[],
              datas=[],
              hiddenimports=[],
