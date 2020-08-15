@@ -30,6 +30,7 @@ When you first launch the app on Linux, you might run into this error. Try the s
 sudo apt-get install --reinstall libxcb-xinerama0
 `
 ## Developer Guide
+
 The entire source code resides in a single file 'ragasiyangal.py'. To setup your development environment, you will need:
 1. Python 3
 2. PyQT5
@@ -39,3 +40,10 @@ From a python3 environment, you can just run
 `
 pip install -r requirements.txt
 `
+To make a distributable binary, you can run
+`
+pip install pyinstaller
+pyinstaller ragasiyangal.mac_app.spec #to generate Mac binary
+pyinstaller ragasiyangal.linux.spec #to generate Linux binary
+`
+
