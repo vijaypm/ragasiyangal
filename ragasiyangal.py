@@ -315,7 +315,7 @@ class MainWindow(QMainWindow):
   def about(self):
     QMessageBox.about(self, "About YaPM",
                       "This software comes without warranty, liability or support! \n" + \
-                      "For more information, check out https://github.com/vijaypm/yapm")
+                      "For more information, check out https://github.com/vijaypm/ragasiyangal")
 
   def new_file(self):
     csv_data = [['AccountName', 'Username', 'Password', 'Comments'], ['', '', '', '']]
