@@ -52,7 +52,7 @@ class CSVTableModel(QAbstractTableModel):
         sansFont.setStrikeOut(True)
       return sansFont
     elif role == Qt.TextAlignmentRole:
-      return Qt.AlignCenter
+      return Qt.AlignLeft|Qt.AlignVCenter
     elif role == Qt.EditRole:
       return self._data[index.row()][index.column()]
     elif role == Qt.BackgroundRole:
@@ -75,6 +75,7 @@ class CSVTableModel(QAbstractTableModel):
       #existing row, mark it as edited
       self._state[index.row()] = {'new': False, 'modified': True, 'deleted': False}
     self.parent().table_view.clearSelection()
+    self.parent().table_view.resizeRowsToContents()
     self.parent().parent().set_needs_save()
     return True
 
@@ -143,6 +144,7 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
     return True in tests
 
 class TableWidget(QWidget):
+
   def __init__(self, data):
     QWidget.__init__(self)
 
@@ -310,7 +312,6 @@ class MainWindow(QMainWindow):
 
       about_menu = menu_bar.addMenu("About")
       about_menu.addAction(about_action)
-
 
   def about(self):
     QMessageBox.about(self, "About YaPM",
