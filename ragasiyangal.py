@@ -1,6 +1,7 @@
 import csv
 
 # Needed for PyQt5
+import re
 from typing import List
 
 from PyQt5.QtCore import (Qt, QAbstractTableModel,
@@ -441,6 +442,19 @@ class MainWindow(QMainWindow):
                                             QLineEdit.Password if num_tries <= 2 else QLineEdit.Normal,
                                             "")
       if ok and password:
+        pwd_chk = Crypto.password_check(password)
+        if not pwd_chk['password_ok']:
+          # weak password
+          # Password should be longer than 8 characters
+          # and have at least 1 upper case, 1 lower case, 1 number and 1 symbol
+          reply = QMessageBox.question(self, 'Weak Password',
+                                       'The password you entered is weak because:\n' + \
+                                        pwd_chk['error_msg'] + \
+                                       '\n\n\n Do you want to try a stronger password ?',
+                               QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+          if reply == QMessageBox.Yes:
+            continue
+        # strong password
         confirm_password, ok = QInputDialog().getText(self, "Attention",
                                             "Re-enter Password to confirm:",
                                             QLineEdit.Password if num_tries <= 2 else QLineEdit.Normal,
@@ -476,6 +490,60 @@ class MainWindow(QMainWindow):
 class Crypto:
 
   delimiter = '|'
+
+  @classmethod
+  def password_check(cls, password):
+    """
+    credit: https://stackoverflow.com/a/32542964/8991379
+    Verify the strength of 'password'
+    Returns a dict indicating the wrong criteria
+    A password is considered strong if:
+        8 characters length or more
+        1 digit or more
+        1 symbol or more
+        1 uppercase letter or more
+        1 lowercase letter or more
+    """
+    error_msgs = []
+
+    # calculating the length
+    length_error = len(password) < 8
+    if length_error:
+      error_msgs.append("Length is less than 8.")
+
+    # searching for digits
+    digit_error = re.search(r"\d", password) is None
+    if digit_error:
+      error_msgs.append("Does not have at least 1 number.")
+
+    # searching for uppercase
+    uppercase_error = re.search(r"[A-Z]", password) is None
+    if uppercase_error:
+      error_msgs.append("Does not have at least 1 UPPER case letter.")
+
+    # searching for lowercase
+    lowercase_error = re.search(r"[a-z]", password) is None
+    if lowercase_error:
+      error_msgs.append("Does not have at least 1 lower case letter.")
+
+    # searching for symbols
+    # symbol_error = re.search(r"[ !#$%&'()*+,-./[\\\]^_`{|}~" + r'"]', password) is None
+    symbol_error = re.search(r"\W", password) is None
+    if symbol_error:
+      error_msgs.append("Does not have at least 1 special symbol.")
+
+    # overall result
+    password_ok = not (length_error or digit_error or uppercase_error or lowercase_error or symbol_error)
+
+    return {
+      'password_ok': password_ok,
+      'length_error': length_error,
+      'digit_error': digit_error,
+      'uppercase_error': uppercase_error,
+      'lowercase_error': lowercase_error,
+      'symbol_error': symbol_error,
+      'error_msg': '\n'.join(error_msgs)
+    }
 
   @classmethod
   def get_fernet(cls, password:bytes, salt: bytes):
