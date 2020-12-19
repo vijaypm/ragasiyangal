@@ -28,6 +28,8 @@ from cryptography.hazmat.primitives.ciphers import (
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+_VERSION_ = "v1.0.3"
+
 class CSVTableModel(QAbstractTableModel):
 
   def __init__(self, parent=None, data=None):
@@ -315,7 +317,8 @@ class MainWindow(QMainWindow):
       about_menu.addAction(about_action)
 
   def about(self):
-    QMessageBox.about(self, "About YaPM",
+    QMessageBox.about(self, "About Ragasiyangal - " + _VERSION_,
+                      "Ragasiyangal - " + _VERSION_ + "\n" + \
                       "This software comes without warranty, liability or support! \n" + \
                       "For more information, check out https://github.com/vijaypm/ragasiyangal")
 
