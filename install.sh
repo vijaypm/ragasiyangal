@@ -4,7 +4,7 @@ then
     echo "\nPlease run script as root."
     exit 1
 fi
-mkdir /opt/ragasiyangal
+mkdir -p /opt/ragasiyangal
 cp ragasiyangal /opt/ragasiyangal/
 cp ragasiyangal.desktop ~/.local/share/applications/
 cp ragasiyangal.png /opt/ragasiyangal/
