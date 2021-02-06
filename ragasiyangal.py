@@ -46,6 +46,9 @@ class CSVTableModel(QAbstractTableModel):
   def reset_state(self):
     self._state = [{'new': False, 'modified': False, 'deleted': False}] * len(self._data)
 
+  def state(self, row):
+    return self._state[row]
+
   def data(self, index, role):
     if role == Qt.DisplayRole:
       return self._data[index.row()][index.column()]
@@ -248,9 +251,11 @@ class TableWidget(QWidget):
       if text:
         self.filterBtn.setText("Clear Filter: " + text)
         self.filterBtn.setStyleSheet("background-color: red")
+        self.table_view.parent().parent().setFilter(True)
       else:
         self.filterBtn.setText("Filter")
         self.filterBtn.setStyleSheet("")
+        self.table_view.parent().parent().setFilter(False)
       self.filterBtn.setShortcut(QKeySequence.Find)
       self.filterBtn.setToolTip("Filter rows")
     return
@@ -270,6 +275,17 @@ class MainWindow(QMainWindow):
     # Status Bar
     self.status = self.statusBar()
     self.needs_save = False
+    self.filter_on = False
+
+  def setFilter(self, enabled:bool):
+    self.filter_on = enabled
+
+  def is_filter_on(self):
+    if self.filter_on:
+      QMessageBox.critical(self,
+                           "Filter is on!",
+                           "Please clear the filter before you attempt any File operations.")
+    return self.filter_on
 
   def create_menu_bar(self):
       menu_bar = self.menuBar()
@@ -323,11 +339,15 @@ class MainWindow(QMainWindow):
                       "For more information, check out https://github.com/vijaypm/ragasiyangal")
 
   def new_file(self):
+    if self.is_filter_on():
+      return
     csv_data = [['AccountName', 'Username', 'Password', 'Comments'], ['', '', '', '']]
     self.table_widget.update_model(csv_data)
     self.reset_needs_save()
 
   def import_file(self):
+    if self.is_filter_on():
+      return
     file_name, filter = \
       QFileDialog.getOpenFileName(self, "Open file", ".",
                                   "CSV Files (*.csv *.txt);;All files (*)")
@@ -342,6 +362,8 @@ class MainWindow(QMainWindow):
     return
 
   def open_file(self):
+    if self.is_filter_on():
+      return
     file_name, filter = \
       QFileDialog.getOpenFileName(self, "Open file", ".",
                                   "CSV Files (*.csv *.txt);;All files (*)")
@@ -356,7 +378,7 @@ class MainWindow(QMainWindow):
       if ok:
         csv_data = None
         try:
-          csv_data = self.decrypt_file(file_name, password)
+          csv_data = self.__decrypt_file(file_name, password)
         except:
           print(sys.exc_info())
           pass
@@ -375,6 +397,8 @@ class MainWindow(QMainWindow):
     return
 
   def save_file(self):
+    if self.is_filter_on():
+      return
     if not self.needs_save:
       QMessageBox.information(self,
                               "Nothing to Save",
@@ -388,13 +412,23 @@ class MainWindow(QMainWindow):
     password = self.show_password_create()
     if not password:
       return
-    file_saved = self.encrypt_file(file_name, password)
+    file_saved = self.__encrypt_file(file_name, password)
     if file_saved:
-      self.table_widget.reset_model_state()
-      self.reset_needs_save()
-      self.status.showMessage(file_name + " saved")
+      # reload saved file as a sanity check
+      try:
+        csv_data = self.__decrypt_file(file_name, password)
+        if csv_data:
+          self.status.showMessage(file_name + " saved")
+          self.table_widget.update_model(csv_data)
+          self.reset_needs_save()
+      except:
+        self.status.showMessage("Error saving file")
+        QMessageBox.critical(self,
+                             "Error Saving File!",
+                             "Please try again! To avoid risk of losing data, " +
+                                    "you can copy the content manually or take a screenshot.")
 
-  def encrypt_file(self, file_name, password):
+  def __encrypt_file(self, file_name, password):
     # generate a key using password and random salt
     password_bytes = bytes(password, 'utf-8')
     salt_bytes = os.urandom(32)
@@ -416,6 +450,8 @@ class MainWindow(QMainWindow):
 
       #write csv rows
       for row in range(self.table_widget.model.rowCount()):
+        if self.table_widget.model.sourceModel().state(row)['deleted']:
+          continue
         rowdata = [
           self.table_widget.model.data(
             self.table_widget.model.index(row, column),
@@ -426,7 +462,7 @@ class MainWindow(QMainWindow):
         writer.writerow(Crypto.encrypt_row(key, rowdata))
     return True
 
-  def decrypt_file(self, file_name, password):
+  def __decrypt_file(self, file_name, password):
     password_bytes = bytes(password, "utf-8")
     with open(file_name) as fin:
       reader = csv.reader(fin)
