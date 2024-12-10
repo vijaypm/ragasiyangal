@@ -28,7 +28,7 @@ from cryptography.hazmat.primitives.ciphers import (
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-_VERSION_ = "v1.0.4"
+_VERSION_ = "v1.0.5"
 
 class CSVTableModel(QAbstractTableModel):
 
