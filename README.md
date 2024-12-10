@@ -27,13 +27,14 @@ Once you have a document open, you can add, edit or delete rows. As you work wit
 
 When you first launch the app on Linux, you might run into this error. Try the suggestions listed here (https://askubuntu.com/questions/308128/failed-to-load-platform-plugin-xcb-while-launching-qt5-app-on-linux-without). In particular, try reinstalling libxcb-xinerama0 :
 `
-sudo apt-get install --reinstall libxcb-xinerama0
+sudo apt install --reinstall libxcb-xinerama0
+sudo apt install libxcb-cursor-dev
 `
 ## Developer Guide
 
 The entire source code resides in a single file 'ragasiyangal.py'. To setup your development environment, you will need:
 1. Python 3
-2. PyQT5
+2. PyQT6
 3. cryptography from cryptography.io
 
 From a python3 environment, you can just run 
