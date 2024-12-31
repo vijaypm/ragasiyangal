@@ -4,13 +4,13 @@ import csv
 import re
 from typing import List
 
-from PyQt5.QtCore import (Qt, QAbstractTableModel,
+from PyQt6.QtCore import (Qt, QAbstractTableModel,
                           QSortFilterProxyModel, pyqtSlot,
-                          QModelIndex, QRegExp)
-from PyQt5.QtGui import (QColor, QKeySequence, QFont)
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableView,
-                             QAction, QWidget, QHeaderView, QHBoxLayout,
-                             QSizePolicy, qApp, QFileDialog, QAbstractItemView,
+                          QModelIndex, QRegularExpression)
+from PyQt6.QtGui import (QColor, QKeySequence, QFont, QAction)
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QTableView,
+                             QWidget, QHeaderView, QHBoxLayout,
+                             QSizePolicy, QFileDialog, QAbstractItemView,
                              QPushButton, QVBoxLayout, QInputDialog,
                              QLineEdit, QMessageBox)
 # Only needed for access to command line arguments
@@ -28,7 +28,7 @@ from cryptography.hazmat.primitives.ciphers import (
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-_VERSION_ = "v1.0.4"
+_VERSION_ = "v1.0.6"
 
 class CSVTableModel(QAbstractTableModel):
 
@@ -50,24 +50,24 @@ class CSVTableModel(QAbstractTableModel):
     return self._state[row]
 
   def data(self, index, role):
-    if role == Qt.DisplayRole:
+    if role == Qt.ItemDataRole.DisplayRole:
       return self._data[index.row()][index.column()]
-    elif role == Qt.FontRole:
+    elif role == Qt.ItemDataRole.FontRole:
       sansFont = QFont("Helvetica", 14)
       if self._state[index.row()]['deleted']:
         sansFont.setStrikeOut(True)
       return sansFont
-    elif role == Qt.TextAlignmentRole:
-      return Qt.AlignLeft|Qt.AlignVCenter
-    elif role == Qt.EditRole:
+    elif role == Qt.ItemDataRole.TextAlignmentRole:
+      return Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter
+    elif role == Qt.ItemDataRole.EditRole:
       return self._data[index.row()][index.column()]
-    elif role == Qt.BackgroundRole:
+    elif role == Qt.ItemDataRole.BackgroundRole:
       if self._state[index.row()]['new']:
-        return QColor(Qt.cyan)
+        return QColor(Qt.GlobalColor.cyan)
       elif self._state[index.row()]['modified']:
-          return QColor(Qt.yellow)
+          return QColor(Qt.GlobalColor.yellow)
       elif self._state[index.row()]['deleted']:
-        return QColor(Qt.darkGray)
+        return QColor(Qt.GlobalColor.darkGray)
     return None
 
   def setData(self, index, value, role):
@@ -86,15 +86,15 @@ class CSVTableModel(QAbstractTableModel):
     return True
 
   def headerData(self, section, orientation, role):
-    if role != Qt.DisplayRole:
+    if role != Qt.ItemDataRole.DisplayRole:
       return None
-    if orientation == Qt.Horizontal:
+    if orientation == Qt.Orientation.Horizontal:
       return self._headers[section]
     else:
       return "{}".format(section)
 
   def flags(self, index):
-    return Qt.ItemIsEnabled|Qt.ItemIsEditable|Qt.ItemIsSelectable
+    return Qt.ItemFlag.ItemIsEnabled|Qt.ItemFlag.ItemIsEditable|Qt.ItemFlag.ItemIsSelectable
 
   def insertRows(self , position , rows , parent=QModelIndex()):
     # Ignore position. Always append to end of table
@@ -135,7 +135,7 @@ class CSVTableModel(QAbstractTableModel):
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
   def filterAcceptsRow(self, row_num, parent):
-    filterString = self.filterRegExp().pattern()
+    filterString = self.filterRegularExpression().pattern()
     if not filterString:
       # nothing to filter
       return True
@@ -150,115 +150,124 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
     return True in tests
 
 class TableWidget(QWidget):
+    def __init__(self, data):
+        QWidget.__init__(self)
 
-  def __init__(self, data):
-    QWidget.__init__(self)
+        # Creating a QTableView
+        self.table_view = QTableView()
+        self.table_view.setAlternatingRowColors(True)
+        self.table_view.setSortingEnabled(True)
+        self.table_view.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        # QTableView Headers
+        self.horizontal_header = self.table_view.horizontalHeader()
+        self.vertical_header = self.table_view.verticalHeader()
+        self.horizontal_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        # self.horizontal_header.setStretchLastSection(True)
+        self.vertical_header.setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.vertical_header.setVisible(False)
 
-    # Creating a QTableView
-    self.table_view = QTableView()
-    self.table_view.setAlternatingRowColors(True)
-    self.table_view.setSortingEnabled(True)
-    self.table_view.setSelectionBehavior(QAbstractItemView.SelectRows)
-    # QTableView Headers
-    self.horizontal_header = self.table_view.horizontalHeader()
-    self.vertical_header = self.table_view.verticalHeader()
-    self.horizontal_header.setSectionResizeMode(
-      QHeaderView.Stretch
-    )
-    # self.horizontal_header.setStretchLastSection(True)
-    self.vertical_header.setSectionResizeMode(
-      QHeaderView.ResizeToContents
-    )
-    self.vertical_header.setVisible(False)
+        # QWidget Layout
+        self.table_layout = QHBoxLayout()
+        size = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        ## Left layout
+        size.setHorizontalStretch(1)
+        self.table_view.setSizePolicy(size)
+        self.table_layout.addWidget(self.table_view)
 
-    # QWidget Layout
-    self.table_layout = QHBoxLayout()
-    size = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-    ## Left layout
-    size.setHorizontalStretch(1)
-    self.table_view.setSizePolicy(size)
-    self.table_layout.addWidget(self.table_view)
+        self.btn_layout = QHBoxLayout()
+        self.addRowBtn = QPushButton("Add")
+        self.addRowBtn.setShortcut(QKeySequence(Qt.Key.Key_Control + Qt.Key.Key_Down))
+        self.addRowBtn.setToolTip("Add a new row")
+        self.addRowBtn.clicked.connect(self.addRowBtn_clicked)
+        self.btn_layout.addWidget(self.addRowBtn)
 
-    self.btn_layout = QHBoxLayout()
-    self.addRowBtn = QPushButton("Add")
-    self.addRowBtn.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_Down))
-    self.addRowBtn.setToolTip("Add a new row")
-    self.addRowBtn.clicked.connect(self.addRowBtn_clicked)
-    self.btn_layout.addWidget(self.addRowBtn)
+        self.delRowBtn = QPushButton("Delete")
+        self.delRowBtn.setShortcut(QKeySequence.StandardKey.Delete)
+        self.delRowBtn.setToolTip("Delete selected row")
+        self.delRowBtn.clicked.connect(self.delRowBtn_clicked)
+        self.btn_layout.addWidget(self.delRowBtn)
 
-    self.delRowBtn = QPushButton("Delete")
-    self.delRowBtn.setShortcut(QKeySequence.Delete)
-    self.delRowBtn.setToolTip("Delete selected row")
-    self.delRowBtn.clicked.connect(self.delRowBtn_clicked)
-    self.btn_layout.addWidget(self.delRowBtn)
+        self.filterBtn = QPushButton("Filter")
+        self.filterBtn.setShortcut(QKeySequence.StandardKey.Find)
+        self.filterBtn.setToolTip("Filter rows")
+        self.filterBtn.clicked.connect(self.filterBtn_clicked)
+        self.btn_layout.addWidget(self.filterBtn)
 
-    self.filterBtn = QPushButton("Filter")
-    self.filterBtn.setShortcut(QKeySequence.Find)
-    self.filterBtn.setToolTip("Filter rows")
-    self.filterBtn.clicked.connect(self.filterBtn_clicked)
-    self.btn_layout.addWidget(self.filterBtn)
+        self.main_layout = QVBoxLayout()
+        self.main_layout.addLayout(self.table_layout)
+        self.main_layout.addLayout(self.btn_layout)
 
-    self.main_layout = QVBoxLayout()
-    self.main_layout.addLayout(self.table_layout)
-    self.main_layout.addLayout(self.btn_layout)
+        # Set the layout to the QWidget
+        self.setLayout(self.main_layout)
 
-    # Set the layout to the QWidget
-    self.setLayout(self.main_layout)
+        self.set_model(data)
 
-    self.set_model(data)
+    def set_model(self, data):
+        # Getting the Model
+        model = CSVTableModel(self, data)
+        # proxyModel = QSortFilterProxyModel()
+        proxyModel = CustomSortFilterProxyModel()
+        proxyModel.setSourceModel(model)
+        self.model = proxyModel
+        self.table_view.setModel(self.model)
 
-  def set_model(self, data):
-    # Getting the Model
-    model = CSVTableModel(self, data)
-    # proxyModel = QSortFilterProxyModel()
-    proxyModel = CustomSortFilterProxyModel()
-    proxyModel.setSourceModel(model)
-    self.model = proxyModel
-    self.table_view.setModel(self.model)
+    def update_model(self, data):
+        self.set_model(data)
+        self.table_view.update()
 
-  def update_model(self, data):
-    self.set_model(data)
-    self.table_view.update()
+    def reset_model_state(self):
+        self.model.sourceModel().reset_state()
 
-  def reset_model_state(self):
-    self.model.sourceModel().reset_state()
+    @pyqtSlot()
+    def addRowBtn_clicked(self):
+        self.model.insertRows(0, 1)
+        self.table_view.scrollToBottom()
+        return
 
-  @pyqtSlot()
-  def addRowBtn_clicked(self):
-    self.model.insertRows(0, 1)
-    self.table_view.scrollToBottom()
-    return
+    @pyqtSlot()
+    def delRowBtn_clicked(self):
+        rows = self.table_view.selectionModel().selectedRows()
+        if len(rows) == 1:
+            if rows[0].isValid():
+                self.model.removeRows(rows[0].row(), 1)
+                self.parent().set_needs_save()
+        else:
+            QMessageBox.critical(
+                self,
+                "Multiple Rows Selected!",
+                "For your safety, delete one row at a time",
+            )
+        return
 
-  @pyqtSlot()
-  def delRowBtn_clicked(self):
-    rows = self.table_view.selectionModel().selectedRows()
-    if len(rows) == 1:
-      if rows[0].isValid():
-        self.model.removeRows(rows[0].row(), 1)
-        self.parent().set_needs_save()
-    else:
-      QMessageBox.critical(self, "Multiple Rows Selected!" , "For your safety, delete one row at a time")
-    return
-
-  @pyqtSlot()
-  def filterBtn_clicked(self):
-    # filterBtn = self.sender()
-    # https://doc.qt.io/qtforpython/PySide2/QtCore/QSortFilterProxyModel.html#filtering
-    text, okPressed = QInputDialog.getText(self, "Find Text", "Text:", QLineEdit.Normal, "")
-    if okPressed:
-      filterRegexp = QRegExp(text, Qt.CaseSensitive, QRegExp.RegExp)
-      self.model.setFilterRegExp(filterRegexp)
-      if text:
-        self.filterBtn.setText("Clear Filter: " + text)
-        self.filterBtn.setStyleSheet("background-color: red")
-        self.table_view.parent().parent().setFilter(True)
-      else:
-        self.filterBtn.setText("Filter")
-        self.filterBtn.setStyleSheet("")
-        self.table_view.parent().parent().setFilter(False)
-      self.filterBtn.setShortcut(QKeySequence.Find)
-      self.filterBtn.setToolTip("Filter rows")
-    return
+    @pyqtSlot()
+    def filterBtn_clicked(self):
+        # filterBtn = self.sender()
+        # https://doc.qt.io/qtforpython/PySide2/QtCore/QSortFilterProxyModel.html#filtering
+        text, okPressed = QInputDialog.getText(
+            self, "Find Text", "Text:", QLineEdit.EchoMode.Normal, ""
+        )
+        if okPressed:
+            filterRegexp = QRegularExpression(
+                text,
+                options= QRegularExpression.PatternOption.CaseInsensitiveOption
+                      | QRegularExpression.PatternOption.ExtendedPatternSyntaxOption,
+            )
+            self.model.setFilterRegularExpression(filterRegexp)
+            if text:
+                self.filterBtn.setText("Clear Filter: " + text)
+                self.filterBtn.setStyleSheet("background-color: red")
+                self.table_view.parent().parent().setFilter(True)
+            else:
+                self.filterBtn.setText("Filter")
+                self.filterBtn.setStyleSheet("")
+                self.table_view.parent().parent().setFilter(False)
+            self.filterBtn.setShortcut(QKeySequence.StandardKey.Find)
+            self.filterBtn.setToolTip("Filter rows")
+        return
 
 # Subclass QMainWindow to customize your application's main window
 class MainWindow(QMainWindow):
@@ -270,8 +279,8 @@ class MainWindow(QMainWindow):
     widget.setParent(self)
     self.table_widget = widget
     self.setCentralWidget(self.table_widget)
-    geometry = qApp.desktop().availableGeometry(self)
-    self.setMinimumSize(geometry.width() * 0.8, geometry.height() * 0.7)
+    geometry = QApplication.primaryScreen().availableGeometry()
+    self.setMinimumSize(int(geometry.width() * 0.8), int(geometry.height() * 0.7))
     # Status Bar
     self.status = self.statusBar()
     self.needs_save = False
@@ -293,22 +302,22 @@ class MainWindow(QMainWindow):
       #Menu
       ## Exit QAction
       exit_action = QAction("Exit", self)
-      exit_action.setShortcut(QKeySequence.Quit)
+      exit_action.setShortcut(QKeySequence.StandardKey.Quit)
       exit_action.setStatusTip("Exit App")
       exit_action.triggered.connect(self.close)
 
       open_action = QAction("Open", self)
-      open_action.setShortcut(QKeySequence.Open)
+      open_action.setShortcut(QKeySequence.StandardKey.Open)
       open_action.setStatusTip("Open a CSV file")
       open_action.triggered.connect(self.open_file)
 
       new_action = QAction("New", self)
-      new_action.setShortcut(QKeySequence.New)
+      new_action.setShortcut(QKeySequence.StandardKey.New)
       new_action.setStatusTip("Create a New document")
       new_action.triggered.connect(self.new_file)
 
       save_action = QAction("Save", self)
-      save_action.setShortcut(QKeySequence.Save)
+      save_action.setShortcut(QKeySequence.StandardKey.Save)
       save_action.setStatusTip("Save to CSV file")
       save_action.triggered.connect(self.save_file)
 
@@ -373,7 +382,7 @@ class MainWindow(QMainWindow):
     while num_tries <= 5 :
       password, ok = QInputDialog().getText(self, "Attention",
                                         "Password:",
-                                        QLineEdit.Password if num_tries <= 2 else QLineEdit.Normal,
+                                        QLineEdit.EchoMode.Password if num_tries <= 2 else QLineEdit.EchoMode.Normal,
                                         "")
       if ok:
         csv_data = None
@@ -444,7 +453,7 @@ class MainWindow(QMainWindow):
       writer = csv.writer(fileOutput)
 
       # write csv headers
-      headers = [self.table_widget.model.headerData(c, Qt.Horizontal)
+      headers = [self.table_widget.model.headerData(c, Qt.Orientation.Horizontal)
                  for c in range(self.table_widget.model.columnCount())]
       writer.writerow(Crypto.encrypt_row(key, headers))
 
@@ -455,7 +464,7 @@ class MainWindow(QMainWindow):
         rowdata = [
           self.table_widget.model.data(
             self.table_widget.model.index(row, column),
-            Qt.DisplayRole
+            Qt.ItemDataRole.DisplayRole
           )
           for column in range(self.table_widget.model.columnCount())
         ]
@@ -478,7 +487,7 @@ class MainWindow(QMainWindow):
     while ok and password != confirm_password:
       password, ok = QInputDialog().getText(self, "Attention",
                                             "Password:",
-                                            QLineEdit.Password if num_tries <= 2 else QLineEdit.Normal,
+                                            QLineEdit.EchoMode.Password if num_tries <= 2 else QLineEdit.EchoMode.Normal,
                                             "")
       if ok and password:
         pwd_chk = Crypto.password_check(password)
@@ -490,13 +499,13 @@ class MainWindow(QMainWindow):
                                        'The password you entered is weak because:\n' + \
                                         pwd_chk['error_msg'] + \
                                        '\n\n\n Do you want to try a stronger password ?',
-                               QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-          if reply == QMessageBox.Yes:
+                               QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes)
+          if reply == QMessageBox.StandardButton.Yes:
             continue
         # strong password
         confirm_password, ok = QInputDialog().getText(self, "Attention",
                                             "Re-enter Password to confirm:",
-                                            QLineEdit.Password if num_tries <= 2 else QLineEdit.Normal,
+                                            QLineEdit.EchoMode.Password if num_tries <= 2 else QLineEdit.EchoMode.Normal,
                                             "")
         if password != confirm_password:
           QMessageBox.critical(self, "Mismatch!", "Passwords don't match")
@@ -509,9 +518,9 @@ class MainWindow(QMainWindow):
     if self.needs_save:
       reply = QMessageBox.question(self, 'Window Close',
                                    'You have unsaved changes.\n Are you sure you want to close the window?',
-                                   QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                                   QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
 
-      if reply == QMessageBox.No:
+      if reply == QMessageBox.StandardButton.No:
         event.ignore()
         return
     event.accept()
@@ -692,6 +701,6 @@ if __name__=='__main__':
   widget = TableWidget(None)
   window = MainWindow(widget)
   window.show()
-  sys.exit(app.exec_())
+  sys.exit(app.exec())
 # Your application won't reach here until you exit and the event
 # loop has stopped.
